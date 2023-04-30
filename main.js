@@ -483,13 +483,33 @@ class LongestPath {
         for (const item of path.reverse()) {
             result += item + "<br>";
         }
-        result = result.slice(0, -6); // 맨 마지막 "<br> " 제거
+        result = result.slice(0, -4); // 맨 마지막 "<br> " 제거
+        result = result.replace(".md", ""); // .md 제거
         return result;
     }
     dfs(startNode) {
         const visited = new Set();
         const longestPath = this.dfsHelper(startNode, visited, []);
         return this.concatenatePaths(longestPath);
+    }
+    considerHierarchy(newPath) {
+        let order = ["L3", "L2", "L1", "L0"];
+        //cur L3 new note
+        //cur L2 new L3
+        //cur L0 new L3
+        //cur L3 new L0
+        let pre_num = -1;
+        for (var path of newPath) { // 뒤로 갈수록 상위 note_level 이라고 간주하고, 뒤에 하위 note_level 이 나오면 false
+            path = path.split("/").pop(); // path 이므로, 파일 이름만 추출
+            const std = order.findIndex(prefix => path.startsWith(prefix));
+            if (pre_num > std) {
+                return false;
+            }
+            else {
+                pre_num = std;
+            }
+        }
+        return true;
     }
     dfsHelper(node, visited, path) {
         visited.add(node);
@@ -498,7 +518,7 @@ class LongestPath {
         for (let neighbor in this.graph[node]) {
             if (!visited.has(neighbor)) {
                 const newPath = this.dfsHelper(neighbor, visited, path.slice());
-                if (newPath.length > longestPath.length) {
+                if (newPath.length > longestPath.length && this.considerHierarchy(newPath)) {
                     longestPath = newPath;
                 }
             }
@@ -53271,7 +53291,9 @@ class Backlinks {
         var resolvedBackLinks = {};
         //initialize
         for (let [key, value] of Object.entries(app.metadataCache.resolvedLinks)) {
-            resolvedBackLinks[key] = {};
+            for (let [outlink, v] of Object.entries(value)) {
+                resolvedBackLinks[outlink] = {};
+            }
         }
         app.metadataCache['resolvedBackLinks'] = resolvedBackLinks;
         for (let [key, value] of Object.entries(app.metadataCache.resolvedLinks)) {

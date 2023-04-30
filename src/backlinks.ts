@@ -3,7 +3,9 @@ export class Backlinks {
         var resolvedBackLinks: Record<string, any> = {}
         //initialize
         for (let [key, value] of Object.entries(app.metadataCache.resolvedLinks)) {
-            resolvedBackLinks[key] = {}
+            for (let [outlink, v] of Object.entries(value)) {
+                resolvedBackLinks[outlink] = {}
+            }
         }
         app.metadataCache['resolvedBackLinks'] = resolvedBackLinks
 
