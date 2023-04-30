@@ -481,10 +481,10 @@ class LongestPath {
     concatenatePaths(path) {
         let result = "";
         for (const item of path.reverse()) {
-            result += item + "<br>";
+            result += item.split("/").pop() + "<br>"; // 폴더 이름 제거
         }
         result = result.slice(0, -4); // 맨 마지막 "<br> " 제거
-        result = result.replace(".md", ""); // .md 제거
+        result = result.replaceAll(".md", ""); // .md 제거
         return result;
     }
     dfs(startNode) {
