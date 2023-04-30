@@ -493,11 +493,16 @@ class LongestPath {
         return this.concatenatePaths(longestPath);
     }
     considerHierarchy(newPath) {
-        let order = ["L3", "L2", "L1", "L0"];
-        //cur L3 new note
-        //cur L2 new L3
-        //cur L0 new L3
-        //cur L3 new L0
+        // Note 면 어떤 L3 부터 찾을 것인가가 중요하고,
+        // Idea 면 어떤 L1 부터 찾을 것인가가 중요하므로,
+        // L3 에서 L2 까지는 가지 않도록 하자
+        let order = [];
+        if (-1 == ["L2", "L1"].findIndex(prefix => newPath[0].split("/").pop().startsWith(prefix))) { // 경로제거 후 match
+            order = ["L3"];
+        }
+        else {
+            order = ["L2", "L1"];
+        }
         let pre_num = -1;
         for (var path of newPath) { // 뒤로 갈수록 상위 note_level 이라고 간주하고, 뒤에 하위 note_level 이 나오면 false
             path = path.split("/").pop(); // path 이므로, 파일 이름만 추출
