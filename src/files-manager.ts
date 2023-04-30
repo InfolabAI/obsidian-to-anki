@@ -60,7 +60,7 @@ export class FileManager {
     requests_1_result: any
     added_media_set: Set<string>
 
-    constructor(app: App, data:ParsedSettings, files: TFile[], file_hashes: Record<string, string>, added_media: string[]) {
+    constructor(app: App, data: ParsedSettings, files: TFile[], file_hashes: Record<string, string>, added_media: string[]) {
         this.app = app
         this.data = data
         this.files = files
@@ -148,13 +148,13 @@ export class FileManager {
         for (let index in this.ownFiles) {
             const i = parseInt(index)
             let file = this.ownFiles[i]
-            if (!(this.file_hashes.hasOwnProperty(file.path) && file.getHash() === this.file_hashes[file.path])) {
-                //Indicates it's changed or new
-                console.info("Scanning ", file.path, "as it's changed or new.")
-                file.scanFile()
-                files_changed.push(file)
-                obfiles_changed.push(this.files[i])
-            }
+            //if (!(this.file_hashes.hasOwnProperty(file.path) && file.getHash() === this.file_hashes[file.path])) {
+            //Indicates it's changed or new
+            //console.info("Scanning ", file.path, "as it's changed or new.")
+            file.scanFile()
+            files_changed.push(file)
+            obfiles_changed.push(this.files[i])
+            //}
         }
         this.ownFiles = files_changed
         this.files = obfiles_changed
@@ -213,7 +213,7 @@ export class FileManager {
         }
         requests.push(AnkiConnect.multi(temp))
         temp = []
-        this.requests_1_result = await AnkiConnect.invoke('multi', {actions: requests})
+        this.requests_1_result = await AnkiConnect.invoke('multi', { actions: requests })
         await this.parse_requests_1()
     }
 
@@ -226,7 +226,7 @@ export class FileManager {
         let note_ids_array_by_file: Requests1Result[0]["result"]
         try {
             note_ids_array_by_file = AnkiConnect.parse(response[0])
-        } catch(error) {
+        } catch (error) {
             console.error("Error: ", error)
             note_ids_array_by_file = response[0].result
         }
@@ -238,7 +238,7 @@ export class FileManager {
             let file_response: addNoteResponse[]
             try {
                 file_response = AnkiConnect.parse(note_ids_array_by_file[i])
-            } catch(error) {
+            } catch (error) {
                 console.error("Error: ", error)
                 file_response = note_ids_array_by_file[i].result
             }
@@ -306,7 +306,7 @@ export class FileManager {
         }
         requests.push(AnkiConnect.multi(temp))
         temp = []
-        await AnkiConnect.invoke('multi', {actions: requests})
+        await AnkiConnect.invoke('multi', { actions: requests })
         console.info("All done!")
     }
 
