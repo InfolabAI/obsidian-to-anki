@@ -52685,6 +52685,7 @@ class FormatConverter {
         result += "</ul>".repeat(indentLevel);
         result = result.replaceAll("<li>- ", "<li>");
         result = result.replaceAll(/`([^`]*)`/g, "<code>$1</code>");
+        result = result.replaceAll(/\[(.+)\]\((.+)\)/g, `<a href="$2">$1</a>`);
         return result;
     }
     format(note_text, cloze, highlights_to_cloze) {
