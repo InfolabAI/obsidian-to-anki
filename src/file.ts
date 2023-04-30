@@ -331,7 +331,7 @@ export class AllFile extends AbstractFile {
     scanInlineNotes() {
         for (let note_match of this.file.matchAll(this.data.INLINE_REGEXP)) {
             let [note, position]: [string, number] = [note_match[1], note_match.index + note_match[0].indexOf(note_match[1]) + note_match[1].length]
-            note = note.replaceAll(/(%%|\^[\w\d]{6})/g, "")
+            note = note.replaceAll(/(%%|\^[\w\d]{6})(?!\|)/g, "") // [[L3. (Root) GANs#^a18e8e|(참고)]] 와 같은 block reference 는 그대로 두고, ^3a3214 처럼 그냥 지저분한 주소만 제거하기 위한 정규식
             // That second thing essentially gets the index of the end of the first capture group.
             let parsed = new ExtendedInlineNote(
                 note,
