@@ -180,6 +180,80 @@ export class Note extends AbstractNote {
 
 }
 
+export class ExtendedInlineNote extends AbstractNote {
+
+    static TAG_REGEXP: RegExp = /Tags: (.*)/;
+    static ID_REGEXP: RegExp = /(?:<!--)?ID: (\d+)/;
+    static TYPE_REGEXP: RegExp = /\[(.*?)\]/;
+
+    getSplitText(): string[] {
+        return this.text.split(" ")
+    }
+
+    getIdentifier(): number | null {
+        const result = this.text.match(ExtendedInlineNote.ID_REGEXP)
+        if (result) {
+            this.text = this.text.slice(0, result.index).trim()
+            return parseInt(result[1])
+        } else {
+            return null
+        }
+    }
+
+    getTags(): string[] {
+        const result = this.text.match(ExtendedInlineNote.TAG_REGEXP)
+        if (result) {
+            this.text = this.text.slice(0, result.index).trim()
+            return result[1].split(TAG_SEP)
+        } else {
+            return []
+        }
+    }
+
+    getNoteType(): string {
+        const result = this.text.match(ExtendedInlineNote.TYPE_REGEXP)
+        this.text = this.text.slice(result.index + result[0].length)
+        return result[1]
+    }
+
+    fieldFromLine(line: string): [string, string] {
+        /*From a given line, determine the next field to add text into.
+
+        Then, return the stripped line, and the field.*/
+        for (let field of this.field_names) {
+            if (line.startsWith(field + ":")) {
+                return [line.slice((field + ":").length), field]
+            }
+        }
+        return [line, this.current_field]
+    }
+
+    getFields(): Record<string, string> {
+        let fields: Record<string, string> = {}
+        for (let field of this.field_names) {
+            fields[field] = ""
+        }
+        for (let word of this.text.split(" ")) {
+            for (let field of this.field_names) {
+                if (word === field + ":") {
+                    this.current_field = field
+                    word = ""
+                }
+            }
+            fields[this.current_field] += word + " "
+        }
+        for (let key in fields) {
+            fields[key] = this.formatter.format(
+                fields[key].trim(),
+                false, false
+            ).trim()
+        }
+        return fields
+    }
+
+
+}
+
 export class InlineNote extends AbstractNote {
 
     static TAG_REGEXP: RegExp = /Tags: (.*)/;

@@ -6,20 +6,20 @@ import * as c from './constants'
 
 import showdownHighlight from 'showdown-highlight'
 
-const ANKI_MATH_REGEXP:RegExp = /(\\\[[\s\S]*?\\\])|(\\\([\s\S]*?\\\))/g
-const HIGHLIGHT_REGEXP:RegExp = /==(.*?)==/g
+const ANKI_MATH_REGEXP: RegExp = /(\\\[[\s\S]*?\\\])|(\\\([\s\S]*?\\\))/g
+const HIGHLIGHT_REGEXP: RegExp = /==(.*?)==/g
 
-const MATH_REPLACE:string = "OBSTOANKIMATH"
-const INLINE_CODE_REPLACE:string = "OBSTOANKICODEINLINE"
-const DISPLAY_CODE_REPLACE:string = "OBSTOANKICODEDISPLAY"
+const MATH_REPLACE: string = "OBSTOANKIMATH"
+const INLINE_CODE_REPLACE: string = "OBSTOANKICODEINLINE"
+const DISPLAY_CODE_REPLACE: string = "OBSTOANKICODEDISPLAY"
 
-const CLOZE_REGEXP:RegExp = /(?:(?<!{){(?:c?(\d+)[:|])?(?!{))((?:[^\n][\n]?)+?)(?:(?<!})}(?!}))/g
+const CLOZE_REGEXP: RegExp = /(?:(?<!{){(?:c?(\d+)[:|])?(?!{))((?:[^\n][\n]?)+?)(?:(?<!})}(?!}))/g
 
 const IMAGE_EXTS: string[] = [".png", ".jpg", ".jpeg", ".gif", ".bmp", ".svg", ".tiff"]
 const AUDIO_EXTS: string[] = [".wav", ".m4a", ".flac", ".mp3", ".wma", ".aac", ".webm"]
 
-const PARA_OPEN:string = "<p>"
-const PARA_CLOSE:string = "</p>"
+const PARA_OPEN: string = "<p>"
+const PARA_CLOSE: string = "</p>"
 
 let cloze_unset_num: number = 1
 
@@ -33,13 +33,13 @@ let converter: Converter = new Converter({
 })
 
 function escapeHtml(unsafe: string): string {
-    return unsafe
-         .replace(/&/g, "&amp;")
-         .replace(/</g, "&lt;")
-         .replace(/>/g, "&gt;")
-         .replace(/"/g, "&quot;")
-         .replace(/'/g, "&#039;");
- }
+	return unsafe
+		.replace(/&/g, "&amp;")
+		.replace(/</g, "&lt;")
+		.replace(/>/g, "&gt;")
+		.replace(/"/g, "&quot;")
+		.replace(/'/g, "&#039;");
+}
 
 export class FormatConverter {
 
@@ -54,8 +54,8 @@ export class FormatConverter {
 	}
 
 	getUrlFromLink(link: string): string {
-        return "obsidian://open?vault=" + encodeURIComponent(this.vault_name) + String.raw`&file=` + encodeURIComponent(link)
-    }
+		return "obsidian://open?vault=" + encodeURIComponent(this.vault_name) + String.raw`&file=` + encodeURIComponent(link)
+	}
 
 	format_note_with_url(note: AnkiConnectNote, url: string, field: string): void {
 		note.fields[field] += '<br><a href="' + url + '" class="obsidian-link">Obsidian</a>'
@@ -69,7 +69,7 @@ export class FormatConverter {
 
 	obsidian_to_anki_math(note_text: string): string {
 		return note_text.replace(
-				c.OBS_DISPLAY_MATH_REGEXP, "\\[$1\\]"
+			c.OBS_DISPLAY_MATH_REGEXP, "\\[$1\\]"
 		).replace(
 			c.OBS_INLINE_MATH_REGEXP,
 			"\\($1\\)"
@@ -134,13 +134,48 @@ export class FormatConverter {
 		return [note_text.replace(regexp, mask), matches]
 	}
 
-	decensor(note_text: string, mask:string, replacements: string[], escape: boolean): string {
+	decensor(note_text: string, mask: string, replacements: string[], escape: boolean): string {
 		for (let replacement of replacements) {
 			note_text = note_text.replace(
 				mask, escape ? escapeHtml(replacement) : replacement
 			)
 		}
 		return note_text
+	}
+
+	toHtml(str: string): string {
+		const lines = str.trim().split("\n");
+
+		let result = "";
+		let indentLevel = 0;
+
+		for (const line of lines) {
+			const match = line.match(/^(\s*)(.*)$/);
+			if (!match) continue;
+
+			const [, indent, content] = match;
+			const currIndentLevel = indent.length;
+
+			if (content.includes("- ")) {
+				if (currIndentLevel > indentLevel) {
+					result += "<ul>".repeat(currIndentLevel - indentLevel);
+				} else if (currIndentLevel < indentLevel) {
+					result += "</ul>".repeat(indentLevel - currIndentLevel);
+				}
+
+				result += `<li>${content.trim()}</li>`;
+				indentLevel = currIndentLevel;
+			}
+			else {
+				result += content;
+			}
+		}
+
+		result += "</ul>".repeat(indentLevel);
+		result = result.replaceAll("<li>- ", "<li>")
+		result = result.replaceAll(/`([^`]*)`/g, "<code>$1</code>")
+
+		return result;
 	}
 
 	format(note_text: string, cloze: boolean, highlights_to_cloze: boolean): string {
@@ -165,7 +200,8 @@ export class FormatConverter {
 		note_text = note_text.replace(HIGHLIGHT_REGEXP, String.raw`<mark>$1</mark>`)
 		note_text = this.decensor(note_text, DISPLAY_CODE_REPLACE, display_code_matches, false)
 		note_text = this.decensor(note_text, INLINE_CODE_REPLACE, inline_code_matches, false)
-		note_text = converter.makeHtml(note_text)
+		//note_text = converter.makeHtml(note_text)
+		note_text = this.toHtml(note_text)
 		note_text = this.decensor(note_text, MATH_REPLACE, math_matches, true).trim()
 		// Remove unnecessary paragraph tag
 		if (note_text.startsWith(PARA_OPEN) && note_text.endsWith(PARA_CLOSE)) {

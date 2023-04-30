@@ -678,7 +678,7 @@ class Note extends AbstractNote {
         return fields;
     }
 }
-class InlineNote extends AbstractNote {
+class ExtendedInlineNote extends AbstractNote {
     static TAG_REGEXP = /Tags: (.*)/;
     static ID_REGEXP = /(?:<!--)?ID: (\d+)/;
     static TYPE_REGEXP = /\[(.*?)\]/;
@@ -686,7 +686,7 @@ class InlineNote extends AbstractNote {
         return this.text.split(" ");
     }
     getIdentifier() {
-        const result = this.text.match(InlineNote.ID_REGEXP);
+        const result = this.text.match(ExtendedInlineNote.ID_REGEXP);
         if (result) {
             this.text = this.text.slice(0, result.index).trim();
             return parseInt(result[1]);
@@ -696,7 +696,7 @@ class InlineNote extends AbstractNote {
         }
     }
     getTags() {
-        const result = this.text.match(InlineNote.TAG_REGEXP);
+        const result = this.text.match(ExtendedInlineNote.TAG_REGEXP);
         if (result) {
             this.text = this.text.slice(0, result.index).trim();
             return result[1].split(TAG_SEP);
@@ -706,9 +706,20 @@ class InlineNote extends AbstractNote {
         }
     }
     getNoteType() {
-        const result = this.text.match(InlineNote.TYPE_REGEXP);
+        const result = this.text.match(ExtendedInlineNote.TYPE_REGEXP);
         this.text = this.text.slice(result.index + result[0].length);
         return result[1];
+    }
+    fieldFromLine(line) {
+        /*From a given line, determine the next field to add text into.
+
+        Then, return the stripped line, and the field.*/
+        for (let field of this.field_names) {
+            if (line.startsWith(field + ":")) {
+                return [line.slice((field + ":").length), field];
+            }
+        }
+        return [line, this.current_field];
     }
     getFields() {
         let fields = {};
@@ -725,7 +736,7 @@ class InlineNote extends AbstractNote {
             fields[this.current_field] += word + " ";
         }
         for (let key in fields) {
-            fields[key] = this.formatter.format(fields[key].trim(), this.note_type.includes("Cloze") && this.curly_cloze, this.highlights_to_cloze).trim();
+            fields[key] = this.formatter.format(fields[key].trim(), false, false).trim();
         }
         return fields;
     }
@@ -52550,7 +52561,7 @@ const AUDIO_EXTS = [".wav", ".m4a", ".flac", ".mp3", ".wma", ".aac", ".webm"];
 const PARA_OPEN = "<p>";
 const PARA_CLOSE = "</p>";
 let cloze_unset_num = 1;
-let converter = new showdown.Converter({
+new showdown.Converter({
     simplifiedAutoLink: true,
     literalMidWordUnderscores: true,
     tables: true, tasklists: true,
@@ -52647,6 +52658,35 @@ class FormatConverter {
         }
         return note_text;
     }
+    toHtml(str) {
+        const lines = str.trim().split("\n");
+        let result = "";
+        let indentLevel = 0;
+        for (const line of lines) {
+            const match = line.match(/^(\s*)(.*)$/);
+            if (!match)
+                continue;
+            const [, indent, content] = match;
+            const currIndentLevel = indent.length;
+            if (content.includes("- ")) {
+                if (currIndentLevel > indentLevel) {
+                    result += "<ul>".repeat(currIndentLevel - indentLevel);
+                }
+                else if (currIndentLevel < indentLevel) {
+                    result += "</ul>".repeat(indentLevel - currIndentLevel);
+                }
+                result += `<li>${content.trim()}</li>`;
+                indentLevel = currIndentLevel;
+            }
+            else {
+                result += content;
+            }
+        }
+        result += "</ul>".repeat(indentLevel);
+        result = result.replaceAll("<li>- ", "<li>");
+        result = result.replaceAll(/`([^`]*)`/g, "<code>$1</code>");
+        return result;
+    }
     format(note_text, cloze, highlights_to_cloze) {
         note_text = this.obsidian_to_anki_math(note_text);
         //Extract the parts that are anki math
@@ -52669,7 +52709,8 @@ class FormatConverter {
         note_text = note_text.replace(HIGHLIGHT_REGEXP, String.raw `<mark>$1</mark>`);
         note_text = this.decensor(note_text, DISPLAY_CODE_REPLACE, display_code_matches, false);
         note_text = this.decensor(note_text, INLINE_CODE_REPLACE, inline_code_matches, false);
-        note_text = converter.makeHtml(note_text);
+        //note_text = converter.makeHtml(note_text)
+        note_text = this.toHtml(note_text);
         note_text = this.decensor(note_text, MATH_REPLACE, math_matches, true).trim();
         // Remove unnecessary paragraph tag
         if (note_text.startsWith(PARA_OPEN) && note_text.endsWith(PARA_CLOSE)) {
@@ -52946,7 +52987,7 @@ class AllFile extends AbstractFile {
             let [note, position] = [note_match[1], note_match.index + note_match[0].indexOf(note_match[1]) + note_match[1].length];
             note = note.replaceAll(/(%%|\^[\w\d]{6})/g, "");
             // That second thing essentially gets the index of the end of the first capture group.
-            let parsed = new InlineNote(note, this.data.fields_dict, this.data.curly_cloze, this.data.highlights_to_cloze, this.formatter).parse(this.target_deck, this.url, this.frozen_fields_dict, this.data, this.data.add_context ? this.getContextAtIndex(note_match.index) : "");
+            let parsed = new ExtendedInlineNote(note, this.data.fields_dict, this.data.curly_cloze, this.data.highlights_to_cloze, this.formatter).parse(this.target_deck, this.url, this.frozen_fields_dict, this.data, this.data.add_context ? this.getContextAtIndex(note_match.index) : "");
             if (parsed.identifier == null) {
                 // Need to make sure global_tags get added
                 parsed.note.tags.push(...this.global_tags.split(TAG_SEP));
