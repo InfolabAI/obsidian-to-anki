@@ -535,7 +535,6 @@ const TAG_PREFIX = "Tags: ";
 const TAG_SEP = " ";
 const ID_REGEXP_STR = String.raw `\n?(?:<!--)?(?:ID: (\d+).*)`;
 const TAG_REGEXP_STR = String.raw `(Tags: .*)`;
-const OBS_TAG_REGEXP = /#(\w+)/g;
 const ANKI_CLOZE_REGEXP = /{{c\d+::[\s\S]+?}}/;
 const CLOZE_ERROR = 42;
 const NOTE_TYPE_ERROR = 69;
@@ -611,15 +610,16 @@ class AbstractNote {
             const context_field = data.context_fields[this.note_type];
             template["fields"][context_field] += longest_context;
         }
+        /*
         if (data.add_obs_tags) {
             for (let key in template["fields"]) {
                 for (let match of template["fields"][key].matchAll(OBS_TAG_REGEXP)) {
-                    this.tags.push(match[1]);
+                    this.tags.push(match[1])
                 }
-                template["fields"][key] = template["fields"][key].replace(OBS_TAG_REGEXP, "");
+                template["fields"][key] = template["fields"][key].replace(OBS_TAG_REGEXP, "")
             }
         }
-        template["tags"].push(...this.tags);
+        template["tags"].push(...this.tags)*/
         template["deckName"] = deck;
         return { note: template, identifier: this.identifier };
     }
