@@ -331,6 +331,9 @@ export class AllFile extends AbstractFile {
     scanInlineNotes() {
         for (let note_match of this.file.matchAll(this.data.INLINE_REGEXP)) {
             let [note, position]: [string, number] = [note_match[1], note_match.index + note_match[0].indexOf(note_match[1]) + note_match[1].length]
+            if (note.includes("%%")) {
+                note = note.replaceAll(/(%%|\^[\w\d]{6})/g, "")
+            }
             // That second thing essentially gets the index of the end of the first capture group.
             let parsed = new InlineNote(
                 note,

@@ -808,7 +808,7 @@ async function settingToData(app, settings, fields_dict) {
     result.DECK_REGEXP = new RegExp(String.raw `^` + escapeRegex(settings.Syntax["Target Deck Line"]) + String.raw `(?:\n|: )(.*)`, "m");
     result.TAG_REGEXP = new RegExp(String.raw `^` + escapeRegex(settings.Syntax["File Tags Line"]) + String.raw `(?:\n|: )(.*)`, "m");
     result.NOTE_REGEXP = new RegExp(String.raw `^` + escapeRegex(settings.Syntax["Begin Note"]) + String.raw `\n([\s\S]*?\n)` + escapeRegex(settings.Syntax["End Note"]), "gm");
-    result.INLINE_REGEXP = new RegExp(escapeRegex(settings.Syntax["Begin Inline Note"]) + String.raw `(.*?)` + escapeRegex(settings.Syntax["End Inline Note"]), "g");
+    result.INLINE_REGEXP = new RegExp(escapeRegex(settings.Syntax["Begin Inline Note"]) + String.raw `([\s\S]*?)` + escapeRegex(settings.Syntax["End Inline Note"]), "gm");
     result.EMPTY_REGEXP = new RegExp(escapeRegex(settings.Syntax["Delete Note Line"]) + ID_REGEXP_STR, "g");
     //Just a simple transfer
     result.curly_cloze = settings.Defaults.CurlyCloze;
@@ -52939,6 +52939,9 @@ class AllFile extends AbstractFile {
     scanInlineNotes() {
         for (let note_match of this.file.matchAll(this.data.INLINE_REGEXP)) {
             let [note, position] = [note_match[1], note_match.index + note_match[0].indexOf(note_match[1]) + note_match[1].length];
+            if (note.includes("%%")) {
+                note = note.replaceAll(/(%%|\^[\w\d]{6})/g, "");
+            }
             // That second thing essentially gets the index of the end of the first capture group.
             let parsed = new InlineNote(note, this.data.fields_dict, this.data.curly_cloze, this.data.highlights_to_cloze, this.formatter).parse(this.target_deck, this.url, this.frozen_fields_dict, this.data, this.data.add_context ? this.getContextAtIndex(note_match.index) : "");
             if (parsed.identifier == null) {
