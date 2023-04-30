@@ -52939,9 +52939,7 @@ class AllFile extends AbstractFile {
     scanInlineNotes() {
         for (let note_match of this.file.matchAll(this.data.INLINE_REGEXP)) {
             let [note, position] = [note_match[1], note_match.index + note_match[0].indexOf(note_match[1]) + note_match[1].length];
-            if (note.includes("%%")) {
-                note = note.replaceAll(/(%%|\^[\w\d]{6})/g, "");
-            }
+            note = note.replaceAll(/(%%|\^[\w\d]{6})/g, "");
             // That second thing essentially gets the index of the end of the first capture group.
             let parsed = new InlineNote(note, this.data.fields_dict, this.data.curly_cloze, this.data.highlights_to_cloze, this.formatter).parse(this.target_deck, this.url, this.frozen_fields_dict, this.data, this.data.add_context ? this.getContextAtIndex(note_match.index) : "");
             if (parsed.identifier == null) {
