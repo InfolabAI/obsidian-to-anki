@@ -146,13 +146,15 @@ export class FormatConverter {
 
     markdownCodeToHtml(markdownCode: string): string {
         markdownCode = markdownCode.trim().replace(/```(\w+)\n([\s\S]*?)[\s\S]```/gm, (match, lang, code) => {
-            const lines = code.trim().replaceAll("\t", "").split("\n");
+            const lines = code.split("\n");
+            const m = lines[0].match(/^(\s*)(.*)$/);
+            const [, indent_to_remove, content] = m; //<ul> 을 통해 이미 특정 indent 에 속한 코드이기 때문에 첫줄에 해당하는 indent 는 없앤다
             let ret = ""
-            for (const line of lines) {
-                ret += line
-                ret += "<br>"
+            for (let line of lines) {
+                line = line.substring(indent_to_remove.length).replaceAll("\<", "&lt;").replaceAll("\>", "&gt;") // html code 표현을 위함
+                ret += line + "\n"
             }
-            return `<pre><code>${ret}</code></pre>`;
+            return `<pre><code class="language-${lang}">${ret}</code></pre>`;
         });
 
         return markdownCode;
@@ -161,7 +163,6 @@ export class FormatConverter {
 
 
     toHtml(str: string): string {
-        str = this.markdownCodeToHtml(str)
         const lines = str.trim().split("\n");
 
         let result = "";
@@ -185,11 +186,13 @@ export class FormatConverter {
                 indentLevel = currIndentLevel;
             }
             else {
-                result += content;
+                result += indent + content;
             }
+            result += "\n";
         }
-
         result += "</ul>".repeat(indentLevel);
+
+        result = this.markdownCodeToHtml(result)
         result = result.replaceAll("<li>- ", "<li>")
         result = result.replaceAll(/(?<!`)`{1}([^`]+?)`{1}(?!`)/g, "<code>$1</code>")
         result = result.replaceAll(/\[(.+)\]\((.+)\)/g, `<a href="$2">$1</a>`)
