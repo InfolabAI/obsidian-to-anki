@@ -602,7 +602,7 @@ class AbstractNote {
         const file_link_fields = data.file_link_fields;
         if (url) {
             if (context) {
-                template["fields"][file_link_fields[this.note_type]] += context;
+                template["fields"][file_link_fields[this.note_type]] += context.split(" > ")[0].split("/").pop() + "<br><br>" + context;
             }
             this.formatter.format_note_with_url(template, url, file_link_fields[this.note_type]);
         }
@@ -52639,6 +52639,7 @@ class FormatConverter {
         if (!(this.file_cache.hasOwnProperty("links"))) {
             return note_text;
         }
+        note_text = note_text.replaceAll(/\[\[(.*?)|.*?\]\]/g, "[[$1]]"); //
         for (let link of this.file_cache.links) {
             note_text = note_text.replace(new RegExp(escapeRegex(link.original), "g"), '<a href="' + this.getUrlFromLink(link.link) + '">' + link.displayText + "</a>");
         }
@@ -52658,7 +52659,20 @@ class FormatConverter {
         }
         return note_text;
     }
+    markdownCodeToHtml(markdownCode) {
+        markdownCode = markdownCode.trim().replace(/```(\w+)\n([\s\S]*?)[\s\S]```/gm, (match, lang, code) => {
+            const lines = code.trim().replaceAll("\t", "").split("\n");
+            let ret = "";
+            for (const line of lines) {
+                ret += line;
+                ret += "<br>";
+            }
+            return `<pre><code>${ret}</code></pre>`;
+        });
+        return markdownCode;
+    }
     toHtml(str) {
+        str = this.markdownCodeToHtml(str);
         const lines = str.trim().split("\n");
         let result = "";
         let indentLevel = 0;
@@ -52684,7 +52698,7 @@ class FormatConverter {
         }
         result += "</ul>".repeat(indentLevel);
         result = result.replaceAll("<li>- ", "<li>");
-        result = result.replaceAll(/`([^`]*)`/g, "<code>$1</code>");
+        result = result.replaceAll(/(?<!`)`{1}([^`]+?)`{1}(?!`)/g, "<code>$1</code>");
         result = result.replaceAll(/\[(.+)\]\((.+)\)/g, `<a href="$2">$1</a>`);
         return result;
     }

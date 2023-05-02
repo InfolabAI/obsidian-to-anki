@@ -92,7 +92,7 @@ abstract class AbstractNote {
         const file_link_fields = data.file_link_fields
         if (url) {
             if (context) {
-                template["fields"][file_link_fields[this.note_type]] += context
+                template["fields"][file_link_fields[this.note_type]] += context.split(" > ")[0].split("/").pop() + "<br><br>" + context
             }
             this.formatter.format_note_with_url(template, url, file_link_fields[this.note_type])
         }
