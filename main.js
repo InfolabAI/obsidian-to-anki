@@ -52639,7 +52639,7 @@ class FormatConverter {
         if (!(this.file_cache.hasOwnProperty("links"))) {
             return note_text;
         }
-        note_text = note_text.replaceAll(/\[\[(.*?)|.*?\]\]/g, "[[$1]]"); //
+        //note_text = note_text.replaceAll(/\[\[(.*?)|.*?\]\]/g, "[[$1]]") //
         for (let link of this.file_cache.links) {
             note_text = note_text.replace(new RegExp(escapeRegex(link.original), "g"), '<a href="' + this.getUrlFromLink(link.link) + '">' + link.displayText + "</a>");
         }
