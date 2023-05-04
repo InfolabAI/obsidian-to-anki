@@ -144,6 +144,21 @@ export class FormatConverter {
         return note_text
     }
 
+    markdownTableToHtml(markdownCode: string): string {
+        markdownCode = markdownCode.replace(/(\|.*\|.*\|)\n\|( *[-:]+[-| :]*)+\|\n(\|.*\|.*\|\n)+/g, (match, title_row, dashed_row, last_row) => {
+            let rows = match.trim().split('\n').slice(2);
+            rows = [title_row, ...rows]
+
+            const htmlRows = rows.map(row => {
+                const columns = row.trim().split('|').slice(1, -1).map(column => column.trim());
+                const htmlColumns = columns.map(column => `<td>${column}</td>`);
+                return `<tr>${htmlColumns.join('')}</tr>`;
+            });
+            return `<table style="border-collapse: collapse;" border="1">${htmlRows.join('')}</table>`; //border-collapse 는 cell 마다 테두리를 가지지 않고, cell 간 테두리가 1개로 나오도록 하는 style
+        })
+        return markdownCode
+    }
+
     markdownCodeToHtml(markdownCode: string): string {
         markdownCode = markdownCode.trim().replace(/```(\w+)\n([\s\S]*?)[\s\S]```/gm, (match, lang, code) => {
             const lines = code.split("\n");
@@ -175,23 +190,27 @@ export class FormatConverter {
             const [, indent, content] = match;
             const currIndentLevel = indent.length;
 
-            if (content.includes("- ")) {
+            // 필요할 때만 불릿 생성
+            if (!content.match("^(- .*)")) { // Table 은 맨앞에 - 가 오지 않으며, 불릿은 indent 를 제외하면 맨 앞에 - 가 옴
+                result += "</ul>".repeat(indentLevel - currIndentLevel); // 불릿이 종료된 경우, indent 0으로 맞춤
+                result += indent + content;
+            }
+            else {
+                // indent level 조절
                 if (currIndentLevel > indentLevel) {
                     result += "<ul>".repeat(currIndentLevel - indentLevel);
                 } else if (currIndentLevel < indentLevel) {
                     result += "</ul>".repeat(indentLevel - currIndentLevel);
                 }
-
                 result += `<li>${content.trim()}</li>`;
-                indentLevel = currIndentLevel;
             }
-            else {
-                result += indent + content;
-            }
+
+            indentLevel = currIndentLevel;
             result += "\n";
         }
         result += "</ul>".repeat(indentLevel);
 
+        result = this.markdownTableToHtml(result)
         result = this.markdownCodeToHtml(result)
         result = result.replaceAll("<li>- ", "<li>")
         result = result.replaceAll(/(?<!`)`{1}([^`]+?)`{1}(?!`)/g, "<code>$1</code>")
