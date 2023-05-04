@@ -52756,6 +52756,7 @@ class FormatConverter {
         result = this.markdownTableToHtml(result);
         result = this.markdownCodeToHtml(result);
         result = result.replaceAll("<li>- ", "<li>");
+        result = result.replaceAll(/\*\*(.*?)\*\*/g, "<b>$1</b>");
         result = result.replaceAll(/(?<!`)`{1}([^`]+?)`{1}(?!`)/g, "<code>$1</code>");
         result = result.replaceAll(/\[(.+)\]\((.+)\)/g, `<a href="$2">$1</a>`);
         return result;
