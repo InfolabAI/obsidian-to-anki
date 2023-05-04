@@ -480,19 +480,25 @@ class LongestPath {
     }
     concatenatePaths(path) {
         let result = "";
+        let index = 1;
         for (const item of path.reverse()) {
-            result += item.split("/").pop() + "<br>"; // 폴더 이름 제거
+            let cur_md = item.split("/").pop();
+            if (index % 2 == 1) {
+                cur_md = `<font color=#009900>${cur_md}</font>`;
+            }
+            result += cur_md + "<br>"; // 폴더 이름 제거
+            index++;
         }
         result = result.slice(0, -4); // 맨 마지막 "<br> " 제거
         result = result.replaceAll(".md", ""); // .md 제거
         return result;
     }
     dfs(startNode) {
-        const visited = new Set();
-        const longestPath = this.dfsHelper(startNode, visited, []);
-        return this.concatenatePaths(longestPath);
+        //const paths = this.dfsHelperLongestPath(startNode, visited, []);
+        const paths = this.findShortestPath(startNode);
+        return this.concatenatePaths(paths);
     }
-    considerHierarchy(newPath) {
+    considerHierarchyForLongestPath(newPath) {
         // Note 면 어떤 L3 부터 찾을 것인가가 중요하고,
         // Idea 면 어떤 L1 부터 찾을 것인가가 중요하므로,
         // L3 에서 L2 까지는 가지 않도록 하자
@@ -516,19 +522,47 @@ class LongestPath {
         }
         return true;
     }
-    dfsHelper(node, visited, path) {
+    dfsHelperLongestPath(node, visited, path) {
         visited.add(node);
         path.push(node);
         let longestPath = [];
         for (let neighbor in this.graph[node]) {
             if (!visited.has(neighbor)) {
-                const newPath = this.dfsHelper(neighbor, visited, path.slice());
-                if (newPath.length > longestPath.length && this.considerHierarchy(newPath)) {
+                const newPath = this.dfsHelperLongestPath(neighbor, visited, path.slice());
+                if (newPath.length > longestPath.length && this.considerHierarchyForLongestPath(newPath)) {
                     longestPath = newPath;
                 }
             }
         }
         return longestPath.length > path.length ? longestPath : path;
+    }
+    considerHierarchyForShortestPath(node, start) {
+        if (-1 == ["L2", "L1"].findIndex(prefix => start.split("/").pop().startsWith(prefix))) { // 경로제거 후 match
+            return node.includes("L3. (Root)"); // 시작 node 가 Note 또는 L3 라면 L3 Root 까지 찾기
+        }
+        else {
+            return node.includes("L1. (Root)"); // 시작 node 가 L2 또는 L1 이라면 L1 Root 까지 찾기
+        }
+    }
+    findShortestPath(start) {
+        const queue = [{ node: start, path: [start] }];
+        const visited = new Set();
+        while (queue.length > 0) {
+            const { node, path } = queue.shift();
+            visited.add(node);
+            if (this.considerHierarchyForShortestPath(node, start)) {
+                return path;
+            }
+            const neighbors = this.graph[node];
+            if (typeof neighbors !== "undefined") { // backlink 가 없는 node 에서 error 발생하지 않도록 함
+                Object.keys(neighbors).forEach((neighbor) => {
+                    if (!visited.has(neighbor)) {
+                        queue.push({ node: neighbor, path: [...path, neighbor] });
+                    }
+                });
+            }
+        }
+        return [start];
     }
 }
 
@@ -602,7 +636,9 @@ class AbstractNote {
         const file_link_fields = data.file_link_fields;
         if (url) {
             if (context) {
-                template["fields"][file_link_fields[this.note_type]] += context.split(" > ")[0].split("/").pop() + "<br><br>" + context;
+                let folder_path = context.split("/");
+                folder_path.pop();
+                template["fields"][file_link_fields[this.note_type]] += `<font color=#009900>${context.split(" > ")[0].split("/").pop().replaceAll(".md", "")}</font>` + ` (${folder_path.join("/")})`;
             }
             this.formatter.format_note_with_url(template, url, file_link_fields[this.note_type]);
         }

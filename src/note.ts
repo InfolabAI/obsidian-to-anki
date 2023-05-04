@@ -92,7 +92,9 @@ abstract class AbstractNote {
         const file_link_fields = data.file_link_fields
         if (url) {
             if (context) {
-                template["fields"][file_link_fields[this.note_type]] += context.split(" > ")[0].split("/").pop() + "<br><br>" + context
+                let folder_path = context.split("/")
+                folder_path.pop()
+                template["fields"][file_link_fields[this.note_type]] += `<font color=#009900>${context.split(" > ")[0].split("/").pop().replaceAll(".md", "")}</font>` + ` (${folder_path.join("/")})`
             }
             this.formatter.format_note_with_url(template, url, file_link_fields[this.note_type])
         }
