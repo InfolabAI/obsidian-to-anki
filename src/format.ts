@@ -175,6 +175,15 @@ export class FormatConverter {
         return markdownCode;
     }
 
+    markdownInlineCodeToHtml(markdownCode: string): string {
+        markdownCode = markdownCode.trim().replace(/(?<!`)`{1}([^`]+?)`{1}(?!`)/g, (match, code) => {
+            code = code.replaceAll("\<", "&lt;").replaceAll("\>", "&gt;") // html code 표현을 위함
+            return `<code>${code}</code>`
+        });
+
+        return markdownCode
+    }
+
 
     toHtml(str: string): string {
         const lines = str.trim().split("\n");
@@ -191,9 +200,9 @@ export class FormatConverter {
 
             // 필요할 때만 불릿 생성
             if (!content.match("^(- .*)")) { // Table 은 맨앞에 - 가 오지 않으며, 불릿은 indent 를 제외하면 맨 앞에 - 가 옴
-                if (indentLevel > currIndentLevel) { // code black 안에서 더 들여쓰기가 되면, currIndentLevel 이 더 커서 에러남
-                    result += "</ul>".repeat(indentLevel - currIndentLevel); // 불릿이 종료된 경우, indent 0으로 맞춤
-                }
+                //if (indentLevel > currIndentLevel) { // code black 안에서 더 들여쓰기가 되면, currIndentLevel 이 더 커서 에러남
+                //    result += "</ul>".repeat(indentLevel - currIndentLevel); // 불릿이 종료된 경우, indent 0으로 맞춤
+                //}
                 result += indent + content;
             }
             else {
@@ -213,9 +222,9 @@ export class FormatConverter {
 
         result = this.markdownTableToHtml(result)
         result = this.markdownCodeToHtml(result)
+        result = this.markdownInlineCodeToHtml(result)
         result = result.replaceAll("<li>- ", "<li>")
         result = result.replaceAll(/\*\*(.*?)\*\*/g, "<b>$1</b>")
-        result = result.replaceAll(/(?<!`)`{1}([^`]+?)`{1}(?!`)/g, "<code>$1</code>")
         result = result.replaceAll(/\[(.+)\]\((.+)\)/g, `<a href="$2">$1</a>`)
 
         return result;

@@ -15,7 +15,8 @@
       "English Grammar In Use Exercises": "",
       "Essential Idioms in English": "",
       "Image Occlusion Enhanced": "",
-      "Reference Basic": ""
+      "Reference Basic": "",
+      "Basic(MD_test)": ""
     },
     "FILE_LINK_FIELDS": {
       "4000 EEW": "Word",
@@ -42,13 +43,15 @@
       "L1": "",
       "L2": "",
       "L3": "",
-      "Note": ""
+      "Note": "",
+      "L0": ""
     },
     "FOLDER_TAGS": {
       "L1": "",
       "L2": "",
       "L3": "",
-      "Note": ""
+      "Note": "",
+      "L0": ""
     },
     "Syntax": {
       "Begin Note": "START",
@@ -62,7 +65,7 @@
     },
     "Defaults": {
       "Tag": "Obsidian_to_Anki",
-      "Deck": "0. FromMD",
+      "Deck": "test",
       "Scheduling Interval": 0,
       "Add File Link": true,
       "Add Context": true,
@@ -74,7 +77,7 @@
   },
   "Added Media": [],
   "File Hashes": {
-    "Note/제텔카스텐.md": "35e8b5107f217215234eb54896647d42",
+    "Note/제텔카스텐.md": "0a0ba5063feecc8a11e648fa4b2a4aac",
     "Note/asdasd.md": "1b9711e943af050ee517c889a6fe3ff6",
     "L3/L3. 312.md": "e4404801593421afe2b6297a67e80543",
     "L3/L3. 123.md": "f36de8b67f54015bcf707249808050eb",
@@ -138,6 +141,12 @@
       "MDContext"
     ],
     "Basic(MD_Regex)": [
+      "Front",
+      "Back",
+      "MDLink",
+      "MDContext"
+    ],
+    "Basic(MD_test)": [
       "Front",
       "Back",
       "MDLink",
