@@ -44,14 +44,18 @@
       "L2": "",
       "L3": "",
       "Note": "",
-      "L0": ""
+      "L0": "",
+      "ChatGPT_MD": "",
+      "ChatGPT_MD/chats": ""
     },
     "FOLDER_TAGS": {
       "L1": "",
       "L2": "",
       "L3": "",
       "Note": "",
-      "L0": ""
+      "L0": "",
+      "ChatGPT_MD": "",
+      "ChatGPT_MD/chats": ""
     },
     "Syntax": {
       "Begin Note": "START",
@@ -91,7 +95,9 @@
     "L1/L1. df123.md": "97026271c90fe9df3acfb986c3c2d3b5",
     "L1/L1. (Root) df123.md": "256aad618e65dc815d3214e4fe7e5038",
     "Note/Untitled.md": "3d2e2cbd735786459266fae06d5a61d2",
-    "L0/L0. Graph.md": "e832211ec718257ac803c5ee94948c29"
+    "L0/L0. Graph.md": "e832211ec718257ac803c5ee94948c29",
+    "ChatGPT_MD/chats/20230505140111.md": "e824510b2f4667c57afd5ad871758be8",
+    "ChatGPT_MD/chats/20230505140053.md": "75c63033c7c5db972bb77f611a3724c6"
   },
   "fields_dict": {
     "4000 EEW": [

@@ -225,7 +225,7 @@ export class FormatConverter {
         result = this.markdownInlineCodeToHtml(result)
         result = result.replaceAll("<li>- ", "<li>")
         result = result.replaceAll(/\*\*(.*?)\*\*/g, "<b>$1</b>")
-        result = result.replaceAll(/\[(.+?)\]\((.+?)\)/g, `<a href="$2">$1</a>`)
+        result = result.replaceAll(/\[([^\[\]]+?)\]\(([^()]+?)\)/g, `<a href="$2">$1</a>`) // 한 줄에 [] 가 여러 개인 경우, 함께 match 되기 때문에 [] 내부에 []가 없도록 함
 
         return result;
     }
