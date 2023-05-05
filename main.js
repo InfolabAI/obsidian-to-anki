@@ -52765,7 +52765,7 @@ class FormatConverter {
         result = this.markdownInlineCodeToHtml(result);
         result = result.replaceAll("<li>- ", "<li>");
         result = result.replaceAll(/\*\*(.*?)\*\*/g, "<b>$1</b>");
-        result = result.replaceAll(/\[(.+)\]\((.+)\)/g, `<a href="$2">$1</a>`);
+        result = result.replaceAll(/\[(.+?)\]\((.+?)\)/g, `<a href="$2">$1</a>`);
         return result;
     }
     format(note_text, cloze, highlights_to_cloze) {
