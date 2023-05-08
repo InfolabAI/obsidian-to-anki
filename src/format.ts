@@ -161,6 +161,10 @@ export class FormatConverter {
 
     markdownCodeToHtml(markdownCode: string): string {
         markdownCode = markdownCode.trim().replace(/```(\w+)\n([\s\S]*?)[\s\S]```/gm, (match, lang, code) => {
+            //prefix
+            code.replace(/`/g, "(!code!)")
+
+            //precess
             const lines = code.split("\n");
             const m = lines[0].match(/^(\s*)(.*)$/);
             const [, indent_to_remove, content] = m; //<ul> 을 통해 이미 특정 indent 에 속한 코드이기 때문에 첫줄에 해당하는 indent 는 없앤다
@@ -169,6 +173,10 @@ export class FormatConverter {
                 line = line.substring(indent_to_remove.length).replaceAll("\<", "&lt;").replaceAll("\>", "&gt;") // html code 표현을 위함
                 ret += line + "\n"
             }
+
+            //postfix
+            code.replace(/\(!code!\)/g, "`")
+
             return `<pre><code class="language-${lang}">${ret}</code></pre>`;
         });
 
