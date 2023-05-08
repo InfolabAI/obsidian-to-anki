@@ -52634,7 +52634,25 @@ class FormatConverter {
         }
     }
     obsidian_to_anki_math(note_text) {
-        return note_text.replace(OBS_DISPLAY_MATH_REGEXP, "\\[$1\\]").replace(OBS_INLINE_MATH_REGEXP, "\\($1\\)");
+        note_text = note_text.replace(OBS_DISPLAY_MATH_REGEXP, "\\[$1\\]");
+        //inline match 와 code block 내부의 typescript ${} ${} 는 서로 구분할 수 없으므로, code block 이 아닐때만 적용해준다.
+        const lines = note_text.trim().split("\n");
+        let result = "";
+        let is_in_code_block = false;
+        for (let line of lines) {
+            if (line.match(/```(\w+)$/) !== null) {
+                is_in_code_block = true;
+            }
+            if (line.match(/```$/) !== null) {
+                is_in_code_block = false;
+            }
+            if (!is_in_code_block) {
+                line = line.replace(OBS_INLINE_MATH_REGEXP, "\\($1\\)");
+            }
+            result += line + "\n";
+        }
+        note_text = result;
+        return note_text;
     }
     cloze_repl(_1, match_id, match_content) {
         if (match_id == undefined) {
@@ -52709,7 +52727,10 @@ class FormatConverter {
         return markdownCode;
     }
     markdownCodeToHtml(markdownCode) {
-        markdownCode = markdownCode.trim().replace(/```(\w+)\n([\s\S]*?)[\s\S]```/gm, (match, lang, code) => {
+        markdownCode = markdownCode.trim().replace(/```(\w+)\n([\s\S]*?)```/gm, (match, lang, code) => {
+            //prefix
+            code.replace(/`/g, "(!code!)");
+            //precess
             const lines = code.split("\n");
             const m = lines[0].match(/^(\s*)(.*)$/);
             const [, indent_to_remove, content] = m; //<ul> 을 통해 이미 특정 indent 에 속한 코드이기 때문에 첫줄에 해당하는 indent 는 없앤다
@@ -52718,6 +52739,8 @@ class FormatConverter {
                 line = line.substring(indent_to_remove.length).replaceAll("\<", "&lt;").replaceAll("\>", "&gt;"); // html code 표현을 위함
                 ret += line + "\n";
             }
+            //postfix
+            code.replace(/\(!code!\)/g, "`");
             return `<pre><code class="language-${lang}">${ret}</code></pre>`;
         });
         return markdownCode;
@@ -52733,7 +52756,17 @@ class FormatConverter {
         const lines = str.trim().split("\n");
         let result = "";
         let indentLevel = 0;
-        for (const line of lines) {
+        let is_in_code_block = false;
+        for (let line of lines) {
+            if (line.match(/```(\w+)$/) !== null) {
+                is_in_code_block = true;
+            }
+            if (line.match(/```$/) !== null) {
+                is_in_code_block = false;
+            }
+            if (!is_in_code_block) {
+                line = this.markdownInlineCodeToHtml(line);
+            }
             const match = line.match(/^(\s*)(.*)$/);
             if (!match)
                 continue;
@@ -52762,10 +52795,9 @@ class FormatConverter {
         result += "</ul>".repeat(indentLevel);
         result = this.markdownTableToHtml(result);
         result = this.markdownCodeToHtml(result);
-        result = this.markdownInlineCodeToHtml(result);
         result = result.replaceAll("<li>- ", "<li>");
         result = result.replaceAll(/\*\*(.*?)\*\*/g, "<b>$1</b>");
-        result = result.replaceAll(/\[(.+?)\]\((.+?)\)/g, `<a href="$2">$1</a>`);
+        result = result.replaceAll(/\[([^\[\]]+?)\]\(([^()]+?)\)/g, `<a href="$2">$1</a>`); // 한 줄에 [] 가 여러 개인 경우, 함께 match 되기 때문에 [] 내부에 []가 없도록 함
         return result;
     }
     format(note_text, cloze, highlights_to_cloze) {

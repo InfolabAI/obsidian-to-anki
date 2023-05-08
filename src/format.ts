@@ -68,12 +68,28 @@ export class FormatConverter {
     }
 
     obsidian_to_anki_math(note_text: string): string {
-        return note_text.replace(
+        note_text = note_text.replace(
             c.OBS_DISPLAY_MATH_REGEXP, "\\[$1\\]"
-        ).replace(
-            c.OBS_INLINE_MATH_REGEXP,
-            "\\($1\\)"
         )
+
+        //inline match 와 code block 내부의 typescript ${} ${} 는 서로 구분할 수 없으므로, code block 이 아닐때만 적용해준다.
+        const lines = note_text.trim().split("\n");
+        let result = ""
+        let is_in_code_block = false
+        for (let line of lines) {
+            if (line.match(/```(\w+)$/) !== null) {
+                is_in_code_block = true
+            }
+            if (line.match(/```$/) !== null) {
+                is_in_code_block = false
+            }
+            if (!is_in_code_block) {
+                line = line.replace(c.OBS_INLINE_MATH_REGEXP, "\\($1\\)")
+            }
+            result += line + "\n"
+        }
+        note_text = result
+        return note_text
     }
 
     cloze_repl(_1: string, match_id: string, match_content: string): string {
@@ -160,7 +176,7 @@ export class FormatConverter {
     }
 
     markdownCodeToHtml(markdownCode: string): string {
-        markdownCode = markdownCode.trim().replace(/```(\w+)\n([\s\S]*?)[\s\S]```/gm, (match, lang, code) => {
+        markdownCode = markdownCode.trim().replace(/```(\w+)\n([\s\S]*?)```/gm, (match, lang, code) => {
             //prefix
             code.replace(/`/g, "(!code!)")
 
@@ -199,7 +215,18 @@ export class FormatConverter {
         let result = "";
         let indentLevel = 0;
 
-        for (const line of lines) {
+        let is_in_code_block = false
+        for (let line of lines) {
+            if (line.match(/```(\w+)$/) !== null) {
+                is_in_code_block = true
+            }
+            if (line.match(/```$/) !== null) {
+                is_in_code_block = false
+            }
+            if (!is_in_code_block) {
+                line = this.markdownInlineCodeToHtml(line)
+            }
+
             const match = line.match(/^(\s*)(.*)$/);
             if (!match) continue;
 
@@ -230,7 +257,6 @@ export class FormatConverter {
 
         result = this.markdownTableToHtml(result)
         result = this.markdownCodeToHtml(result)
-        result = this.markdownInlineCodeToHtml(result)
         result = result.replaceAll("<li>- ", "<li>")
         result = result.replaceAll(/\*\*(.*?)\*\*/g, "<b>$1</b>")
         result = result.replaceAll(/\[([^\[\]]+?)\]\(([^()]+?)\)/g, `<a href="$2">$1</a>`) // 한 줄에 [] 가 여러 개인 경우, 함께 match 되기 때문에 [] 내부에 []가 없도록 함
