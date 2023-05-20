@@ -1,4 +1,4 @@
-import { Notice, Plugin, addIcon } from 'obsidian'
+import { Editor, MarkdownView, TFile, App, SuggestModal, Notice, Plugin, addIcon } from 'obsidian'
 import * as AnkiConnect from './src/anki'
 import { PluginSettings, ParsedSettings } from './src/interfaces/settings-interface'
 import { SettingsTab } from './src/settings'
@@ -6,6 +6,60 @@ import { ANKI_ICON } from './src/constants'
 import { settingToData } from './src/setting-to-data'
 import { FileManager } from './src/files-manager'
 import { Backlinks } from './src/backlinks'
+
+class SuggestBacklinks extends SuggestModal<string> {
+	// backlinks 를 얻고 suggest 후 선택하면, 해당 backlink 로 이동함
+	editor: Editor
+	view: MarkdownView
+
+	constructor(app: App, editor: Editor, view: MarkdownView) {
+		super(app);
+		this.editor = editor
+		this.view = view
+	}
+
+	getSuggestions(query: string): string[] | Promise<string[]> {
+		let file = app.workspace.getActiveFile()
+		if (app.metadataCache['resolvedBackLinks'][file.path] != null) {
+			return Object.keys(app.metadataCache['resolvedBackLinks'][file.path]) // Return backlinks
+		}
+	}
+
+	renderSuggestion(value: string, el: HTMLElement) {
+		el.createEl("div", { text: value })
+	}
+
+	async onChooseSuggestion(item: string, evt: MouseEvent | KeyboardEvent) {
+		let file = this.openFileByPath(item)
+		await this.app.workspace.openLinkText(
+			file.basename,
+			"",
+			false, // No new tab
+			{ state: { mode: "source" } }
+		);
+		const activeView =
+			this.app.workspace.getActiveViewOfType(MarkdownView);
+
+		if (!activeView) {
+			new Notice("No active markdown editor found.");
+			return;
+		}
+
+		activeView.editor.focus();
+		new Notice(`Backlink is opened`);
+	}
+
+	openFileByPath(filePath: string): TFile {
+		// 경로의 md 파일 open
+		const file = app.vault.getAbstractFileByPath(filePath) as TFile;
+		if (file === null) {
+			new Notice(`There is no file at path ${filePath}. You need to create the file first.`);
+			throw new Error(`There is no file at path ${filePath}. You need to create the file first.`);
+		}
+
+		return file;
+	}
+}
 
 export default class MyPlugin extends Plugin {
 
@@ -160,6 +214,7 @@ export default class MyPlugin extends Plugin {
 	async scanVault() {
 		let backlinks: Backlinks = new Backlinks()
 		backlinks.getBackLinks_hcustom()
+
 		new Notice('Scanning vault, check console for details...');
 		console.info("Checking connection to Anki...")
 		try {
@@ -222,6 +277,16 @@ export default class MyPlugin extends Plugin {
 			name: 'Scan Vault',
 			callback: async () => {
 				await this.scanVault()
+			}
+		})
+		this.addCommand({
+			id: 'go_to_backlinks',
+			name: 'Go To Backlinks',
+			editorCallback: async (editor: Editor, view: MarkdownView) => {
+				let backlinks: Backlinks = new Backlinks()
+				backlinks.getBackLinks_hcustom()
+
+				await new SuggestBacklinks(app, editor, view).open()
 			}
 		})
 	}

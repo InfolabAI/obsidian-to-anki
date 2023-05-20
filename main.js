@@ -53465,6 +53465,46 @@ class Backlinks {
     }
 }
 
+class SuggestBacklinks extends obsidian.SuggestModal {
+    // backlinks 를 얻고 suggest 후 선택하면, 해당 backlink 로 이동함
+    editor;
+    view;
+    constructor(app, editor, view) {
+        super(app);
+        this.editor = editor;
+        this.view = view;
+    }
+    getSuggestions(query) {
+        let file = app.workspace.getActiveFile();
+        if (app.metadataCache['resolvedBackLinks'][file.path] != null) {
+            return Object.keys(app.metadataCache['resolvedBackLinks'][file.path]); // Return backlinks
+        }
+    }
+    renderSuggestion(value, el) {
+        el.createEl("div", { text: value });
+    }
+    async onChooseSuggestion(item, evt) {
+        let file = this.openFileByPath(item);
+        await this.app.workspace.openLinkText(file.basename, "", false, // No new tab
+        { state: { mode: "source" } });
+        const activeView = this.app.workspace.getActiveViewOfType(obsidian.MarkdownView);
+        if (!activeView) {
+            new obsidian.Notice("No active markdown editor found.");
+            return;
+        }
+        activeView.editor.focus();
+        new obsidian.Notice(`Backlink is opened`);
+    }
+    openFileByPath(filePath) {
+        // 경로의 md 파일 open
+        const file = app.vault.getAbstractFileByPath(filePath);
+        if (file === null) {
+            new obsidian.Notice(`There is no file at path ${filePath}. You need to create the file first.`);
+            throw new Error(`There is no file at path ${filePath}. You need to create the file first.`);
+        }
+        return file;
+    }
+}
 class MyPlugin extends obsidian.Plugin {
     settings;
     note_types;
@@ -53656,6 +53696,15 @@ class MyPlugin extends obsidian.Plugin {
             name: 'Scan Vault',
             callback: async () => {
                 await this.scanVault();
+            }
+        });
+        this.addCommand({
+            id: 'go_to_backlinks',
+            name: 'Go To Backlinks',
+            editorCallback: async (editor, view) => {
+                let backlinks = new Backlinks();
+                backlinks.getBackLinks_hcustom();
+                await new SuggestBacklinks(app, editor, view).open();
             }
         });
     }
