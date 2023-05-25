@@ -3,6 +3,7 @@
 import { FROZEN_FIELDS_DICT } from './interfaces/field-interface'
 import { AnkiConnectNote, AnkiConnectNoteAndID } from './interfaces/note-interface'
 import { FileData } from './interfaces/settings-interface'
+import { Notice } from 'obsidian'
 import { Note, ExtendedInlineNote, InlineNote, RegexNote, CLOZE_ERROR, NOTE_TYPE_ERROR, TAG_SEP, ID_REGEXP_STR, TAG_REGEXP_STR } from './note'
 import { Md5 } from 'ts-md5/dist/md5';
 import * as AnkiConnect from './anki'
@@ -201,7 +202,7 @@ abstract class AbstractFile {
 
     getUpdateFields(): AnkiConnect.AnkiConnectRequest {
         let actions: AnkiConnect.AnkiConnectRequest[] = []
-        for (let parsed of this.notes_to_edit) {
+        for (let parsed of this.notes_to_edit) { // notes_to_edit 은 하나의 note 에 여러 개의 anki 카드가 있어야 여러 개가 됨
             actions.push(
                 AnkiConnect.updateNoteFields(
                     parsed.identifier, parsed.note.fields
@@ -213,7 +214,7 @@ abstract class AbstractFile {
 
     getNoteInfo(): AnkiConnect.AnkiConnectRequest {
         let IDs: number[] = []
-        for (let parsed of this.notes_to_edit) {
+        for (let parsed of this.notes_to_edit) {// notes_to_edit 은 하나의 note 에 여러 개의 anki 카드가 있어야 여러 개가 됨
             IDs.push(parsed.identifier)
         }
         return AnkiConnect.notesInfo(IDs)
@@ -225,7 +226,7 @@ abstract class AbstractFile {
 
     getClearTags(): AnkiConnect.AnkiConnectRequest {
         let IDs: number[] = []
-        for (let parsed of this.notes_to_edit) {
+        for (let parsed of this.notes_to_edit) {// notes_to_edit 은 하나의 note 에 여러 개의 anki 카드가 있어야 여러 개가 됨
             IDs.push(parsed.identifier)
         }
         return AnkiConnect.removeTags(IDs, this.tags.join(" "))
@@ -233,7 +234,7 @@ abstract class AbstractFile {
 
     getAddTags(): AnkiConnect.AnkiConnectRequest {
         let actions: AnkiConnect.AnkiConnectRequest[] = []
-        for (let parsed of this.notes_to_edit) {
+        for (let parsed of this.notes_to_edit) {// notes_to_edit 은 하나의 note 에 여러 개의 anki 카드가 있어야 여러 개가 됨
             actions.push(
                 AnkiConnect.addTags([parsed.identifier], parsed.note.tags.join(" ") + " " + this.global_tags)
             )
@@ -356,7 +357,7 @@ export class AllFile extends AbstractFile {
                 if (parsed.identifier == CLOZE_ERROR) {
                     continue
                 }
-                console.warn("Note with id", parsed.identifier, " in file ", this.path, " does not exist in Anki!")
+                new Notice(`Note with id ${parsed.identifier} in file ${this.path} does not exist in Anki!`, 50000)
             } else {
                 this.notes_to_edit.push(parsed)
             }

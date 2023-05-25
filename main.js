@@ -52994,14 +52994,14 @@ class AbstractFile {
     }
     getUpdateFields() {
         let actions = [];
-        for (let parsed of this.notes_to_edit) {
+        for (let parsed of this.notes_to_edit) { // notes_to_edit 은 하나의 note 에 여러 개의 anki 카드가 있어야 여러 개가 됨
             actions.push(updateNoteFields(parsed.identifier, parsed.note.fields));
         }
         return multi(actions);
     }
     getNoteInfo() {
         let IDs = [];
-        for (let parsed of this.notes_to_edit) {
+        for (let parsed of this.notes_to_edit) { // notes_to_edit 은 하나의 note 에 여러 개의 anki 카드가 있어야 여러 개가 됨
             IDs.push(parsed.identifier);
         }
         return notesInfo(IDs);
@@ -53011,14 +53011,14 @@ class AbstractFile {
     }
     getClearTags() {
         let IDs = [];
-        for (let parsed of this.notes_to_edit) {
+        for (let parsed of this.notes_to_edit) { // notes_to_edit 은 하나의 note 에 여러 개의 anki 카드가 있어야 여러 개가 됨
             IDs.push(parsed.identifier);
         }
         return removeTags(IDs, this.tags.join(" "));
     }
     getAddTags() {
         let actions = [];
-        for (let parsed of this.notes_to_edit) {
+        for (let parsed of this.notes_to_edit) { // notes_to_edit 은 하나의 note 에 여러 개의 anki 카드가 있어야 여러 개가 됨
             actions.push(addTags([parsed.identifier], parsed.note.tags.join(" ") + " " + this.global_tags));
         }
         return multi(actions);
@@ -53112,7 +53112,7 @@ class AllFile extends AbstractFile {
                 if (parsed.identifier == CLOZE_ERROR) {
                     continue;
                 }
-                console.warn("Note with id", parsed.identifier, " in file ", this.path, " does not exist in Anki!");
+                new obsidian.Notice(`Note with id ${parsed.identifier} in file ${this.path} does not exist in Anki!`, 50000);
             }
             else {
                 this.notes_to_edit.push(parsed);
@@ -53289,13 +53289,13 @@ class FileManager {
         for (let index in this.ownFiles) {
             const i = parseInt(index);
             let file = this.ownFiles[i];
-            //if (!(this.file_hashes.hasOwnProperty(file.path) && file.getHash() === this.file_hashes[file.path])) {
-            //Indicates it's changed or new
-            //console.info("Scanning ", file.path, "as it's changed or new.")
-            file.scanFile();
-            files_changed.push(file);
-            obfiles_changed.push(this.files[i]);
-            //}
+            if (!(this.file_hashes.hasOwnProperty(file.path) && file.getHash() === this.file_hashes[file.path])) {
+                //Indicates it's changed or new
+                console.info("Scanning ", file.path, "as it's changed or new.");
+                file.scanFile();
+                files_changed.push(file);
+                obfiles_changed.push(this.files[i]);
+            }
         }
         this.ownFiles = files_changed;
         this.files = obfiles_changed;
@@ -53304,7 +53304,7 @@ class FileManager {
         let requests = [];
         let temp = [];
         console.info("Requesting addition of notes into Anki...");
-        for (let file of this.ownFiles) {
+        for (let file of this.ownFiles) { // Note 에 Anki card 가 있든 없든 temp 에 추가함.비효율적임. 이 아래 모든 for문이 마찬가지
             temp.push(file.getAddNotes());
         }
         requests.push(multi(temp));
@@ -53319,7 +53319,7 @@ class FileManager {
         requests.push(getTags());
         console.info("Requesting update of fields of existing notes");
         for (let file of this.ownFiles) {
-            temp.push(file.getUpdateFields());
+            temp.push(file.getUpdateFields()); // 하나의 note(file) 에 포함된 notes_to_edit 을 추출하는 과정
         }
         requests.push(multi(temp));
         temp = [];
@@ -53387,6 +53387,7 @@ class FileManager {
                 }
                 catch (error) {
                     console.warn("Failed to add note ", file.all_notes_to_add[i], " in file", file.path, " due to error ", error);
+                    new obsidian.Notice(`Failed to add note ${file.all_notes_to_add[i]} in file ${file.path} due to error [${error}]`, 50000);
                     file.note_ids.push(response.result);
                 }
             }

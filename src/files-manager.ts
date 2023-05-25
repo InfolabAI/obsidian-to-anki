@@ -148,13 +148,13 @@ export class FileManager {
         for (let index in this.ownFiles) {
             const i = parseInt(index)
             let file = this.ownFiles[i]
-            //if (!(this.file_hashes.hasOwnProperty(file.path) && file.getHash() === this.file_hashes[file.path])) {
-            //Indicates it's changed or new
-            //console.info("Scanning ", file.path, "as it's changed or new.")
-            file.scanFile()
-            files_changed.push(file)
-            obfiles_changed.push(this.files[i])
-            //}
+            if (!(this.file_hashes.hasOwnProperty(file.path) && file.getHash() === this.file_hashes[file.path])) {
+                //Indicates it's changed or new
+                console.info("Scanning ", file.path, "as it's changed or new.")
+                file.scanFile()
+                files_changed.push(file)
+                obfiles_changed.push(this.files[i])
+            }
         }
         this.ownFiles = files_changed
         this.files = obfiles_changed
@@ -164,7 +164,7 @@ export class FileManager {
         let requests: AnkiConnect.AnkiConnectRequest[] = []
         let temp: AnkiConnect.AnkiConnectRequest[] = []
         console.info("Requesting addition of notes into Anki...")
-        for (let file of this.ownFiles) {
+        for (let file of this.ownFiles) { // Note 에 Anki card 가 있든 없든 temp 에 추가함.비효율적임. 이 아래 모든 for문이 마찬가지
             temp.push(file.getAddNotes())
         }
         requests.push(AnkiConnect.multi(temp))
@@ -179,7 +179,7 @@ export class FileManager {
         requests.push(AnkiConnect.getTags())
         console.info("Requesting update of fields of existing notes")
         for (let file of this.ownFiles) {
-            temp.push(file.getUpdateFields())
+            temp.push(file.getUpdateFields())// 하나의 note(file) 에 포함된 notes_to_edit 을 추출하는 과정
         }
         requests.push(AnkiConnect.multi(temp))
         temp = []
@@ -250,6 +250,7 @@ export class FileManager {
                     file.note_ids.push(AnkiConnect.parse(response))
                 } catch (error) {
                     console.warn("Failed to add note ", file.all_notes_to_add[i], " in file", file.path, " due to error ", error)
+                    new Notice(`Failed to add note ${file.all_notes_to_add[i]} in file ${file.path} due to error [${error}]`, 50000)
                     file.note_ids.push(response.result)
                 }
             }
