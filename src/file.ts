@@ -212,6 +212,14 @@ abstract class AbstractFile {
         return AnkiConnect.multi(actions)
     }
 
+    getCardInfo(): AnkiConnect.AnkiConnectRequest {
+        let IDs: number[] = []
+        for (let parsed of this.notes_to_edit) {// notes_to_edit 은 하나의 note 에 여러 개의 anki 카드가 있어야 여러 개가 됨
+            IDs.push(parsed.identifier)
+        }
+        return AnkiConnect.cardsInfo(IDs)
+    }
+
     getNoteInfo(): AnkiConnect.AnkiConnectRequest {
         let IDs: number[] = []
         for (let parsed of this.notes_to_edit) {// notes_to_edit 은 하나의 note 에 여러 개의 anki 카드가 있어야 여러 개가 됨

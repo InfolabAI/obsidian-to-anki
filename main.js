@@ -70,6 +70,11 @@ function updateNoteFields(id, fields) {
         }
     });
 }
+function cardsInfo(note_ids) {
+    return request('cardsInfo', {
+        cards: note_ids
+    });
+}
 function notesInfo(note_ids) {
     return request('notesInfo', {
         notes: note_ids
@@ -52999,6 +53004,13 @@ class AbstractFile {
         }
         return multi(actions);
     }
+    getCardInfo() {
+        let IDs = [];
+        for (let parsed of this.notes_to_edit) { // notes_to_edit 은 하나의 note 에 여러 개의 anki 카드가 있어야 여러 개가 됨
+            IDs.push(parsed.identifier);
+        }
+        return cardsInfo(IDs);
+    }
     getNoteInfo() {
         let IDs = [];
         for (let parsed of this.notes_to_edit) { // notes_to_edit 은 하나의 note 에 여러 개의 anki 카드가 있어야 여러 개가 됨
@@ -53213,6 +53225,7 @@ class FileManager {
     data;
     files;
     ownFiles;
+    entireFiles;
     file_hashes;
     requests_1_result;
     added_media_set;
@@ -53221,6 +53234,7 @@ class FileManager {
         this.data = data;
         this.files = files;
         this.ownFiles = [];
+        this.entireFiles = [];
         this.file_hashes = file_hashes;
         this.added_media_set = new Set(added_media);
     }
@@ -53289,22 +53303,58 @@ class FileManager {
         for (let index in this.ownFiles) {
             const i = parseInt(index);
             let file = this.ownFiles[i];
+            file.scanFile();
             if (!(this.file_hashes.hasOwnProperty(file.path) && file.getHash() === this.file_hashes[file.path])) {
                 //Indicates it's changed or new
                 console.info("Scanning ", file.path, "as it's changed or new.");
-                file.scanFile();
                 files_changed.push(file);
                 obfiles_changed.push(this.files[i]);
             }
+            this.entireFiles.push(file);
         }
         this.ownFiles = files_changed;
         this.files = obfiles_changed;
+    }
+    async requests_hee() {
+        let requests = [];
+        let temp = [];
+        console.info("Requesting note infos to get tags...");
+        // add record property
+        let ankicardid_to_file = {};
+        for (let file of this.entireFiles) {
+            let noteids = file.getNoteInfo();
+            temp.push(noteids);
+            for (let id in noteids['params']['notes']) {
+                ankicardid_to_file[id] = file;
+            }
+        }
+        requests.push(multi(temp));
+        temp = [];
+        let results = await invoke('multi', { actions: requests });
+        this.parseNoteInfo_hee(results, ankicardid_to_file);
+        return results;
+    }
+    async parseNoteInfo_hee(results, ankicardid_to_file) {
+        for (let note in results[0]['result']) { //[request 번호]['result'][note 번호]['result'][data 번호]['tags']
+            let tags = note['result'][0]['tags'];
+            // convert arrray to string
+            let tags_string = tags.join(' ');
+            if (tags_string.includes('remove')) {
+                // delete anki card
+                let noteid = note['result'][0]['noteId'];
+                await this.deleteAnkiCard(noteid, ankicardid_to_file[noteid]);
+            }
+        }
+    }
+    async deleteAnkiCard(nodeid, file) {
+        // delete anki card from obsidian note
+        // delete anki card from
     }
     async requests_1() {
         let requests = [];
         let temp = [];
         console.info("Requesting addition of notes into Anki...");
-        for (let file of this.ownFiles) { // Note 에 Anki card 가 있든 없든 temp 에 추가함.비효율적임. 이 아래 모든 for문이 마찬가지
+        for (let file of this.ownFiles) { // initialiseFiles 에서 hash 로 변경된 note (file)만 ownfiles 에 넣도록 하는 조건문 처리함. 여기서 Anki card 가 아닌 곳이 변경되어도 ownfiles 에 추가됨. 그래도 변경되지 않은 모든 note 를 temp 에 추가하는 비효율은 없음.
             temp.push(file.getAddNotes());
         }
         requests.push(multi(temp));
@@ -53654,6 +53704,8 @@ class MyPlugin extends obsidian.Plugin {
         const data = await settingToData(this.app, this.settings, this.fields_dict);
         const manager = new FileManager(this.app, data, this.app.vault.getMarkdownFiles(), this.file_hashes, this.added_media);
         await manager.initialiseFiles();
+        let ret = await manager.requests_hee();
+        console.log(ret);
         await manager.requests_1();
         this.added_media = Array.from(manager.added_media_set);
         const hashes = manager.getHashes();

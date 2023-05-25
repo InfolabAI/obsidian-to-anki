@@ -228,6 +228,8 @@ export default class MyPlugin extends Plugin {
 		const data: ParsedSettings = await settingToData(this.app, this.settings, this.fields_dict)
 		const manager = new FileManager(this.app, data, this.app.vault.getMarkdownFiles(), this.file_hashes, this.added_media)
 		await manager.initialiseFiles()
+		let ret = await manager.requests_hee()
+		console.log(ret)
 		await manager.requests_1()
 		this.added_media = Array.from(manager.added_media_set)
 		const hashes = manager.getHashes()
