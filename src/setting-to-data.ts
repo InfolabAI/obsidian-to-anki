@@ -33,6 +33,9 @@ export async function settingToData(app: App, settings: PluginSettings, fields_d
     result.TAG_REGEXP = new RegExp(String.raw`^` + escapeRegex(settings.Syntax["File Tags Line"]) + String.raw`(?:\n|: )(.*)`, "m")
     result.NOTE_REGEXP = new RegExp(String.raw`^` + escapeRegex(settings.Syntax["Begin Note"]) + String.raw`\n([\s\S]*?\n)` + escapeRegex(settings.Syntax["End Note"]), "gm")
     result.INLINE_REGEXP = new RegExp(escapeRegex(settings.Syntax["Begin Inline Note"]) + String.raw`([\s\S]*?)` + escapeRegex(settings.Syntax["End Inline Note"]), "gm")
+    result.INLINE_START = new RegExp(escapeRegex(settings.Syntax["Begin Inline Note"]) + String.raw`.*?` + String.raw`Back:.*?%%`, "gm")
+    result.INLINE_END_STRING = escapeRegex(settings.Syntax["End Inline Note"])
+    result.INLINE_START_END_TIME = new RegExp(escapeRegex(settings.Syntax["Begin Inline Note"]) + String.raw`([\s\S]*?)` + escapeRegex(settings.Syntax["End Inline Note"]) + String.raw`%%\d\d\d\d-\d\d-\d\d%%`, "gm")
     result.EMPTY_REGEXP = new RegExp(escapeRegex(settings.Syntax["Delete Note Line"]) + ID_REGEXP_STR, "g")
 
     //Just a simple transfer

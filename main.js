@@ -866,6 +866,9 @@ async function settingToData(app, settings, fields_dict) {
     result.TAG_REGEXP = new RegExp(String.raw `^` + escapeRegex(settings.Syntax["File Tags Line"]) + String.raw `(?:\n|: )(.*)`, "m");
     result.NOTE_REGEXP = new RegExp(String.raw `^` + escapeRegex(settings.Syntax["Begin Note"]) + String.raw `\n([\s\S]*?\n)` + escapeRegex(settings.Syntax["End Note"]), "gm");
     result.INLINE_REGEXP = new RegExp(escapeRegex(settings.Syntax["Begin Inline Note"]) + String.raw `([\s\S]*?)` + escapeRegex(settings.Syntax["End Inline Note"]), "gm");
+    result.INLINE_START = new RegExp(escapeRegex(settings.Syntax["Begin Inline Note"]) + String.raw `.*?` + String.raw `Back:.*?%%`, "gm");
+    result.INLINE_END_STRING = escapeRegex(settings.Syntax["End Inline Note"]);
+    result.INLINE_START_END_TIME = new RegExp(escapeRegex(settings.Syntax["Begin Inline Note"]) + String.raw `([\s\S]*?)` + escapeRegex(settings.Syntax["End Inline Note"]) + String.raw `%%\d\d\d\d-\d\d-\d\d%%`, "gm");
     result.EMPTY_REGEXP = new RegExp(escapeRegex(settings.Syntax["Delete Note Line"]) + ID_REGEXP_STR, "g");
     //Just a simple transfer
     result.curly_cloze = settings.Defaults.CurlyCloze;
@@ -53225,6 +53228,7 @@ class FileManager {
     data;
     files;
     ownFiles;
+    entireobFiles;
     entireFiles;
     file_hashes;
     requests_1_result;
@@ -53298,6 +53302,8 @@ class FileManager {
     }
     async initialiseFiles() {
         await this.genAllFiles();
+        this.entireFiles = this.ownFiles;
+        this.entireobFiles = this.files;
         let files_changed = [];
         let obfiles_changed = [];
         for (let index in this.ownFiles) {
@@ -53310,7 +53316,6 @@ class FileManager {
                 files_changed.push(file);
                 obfiles_changed.push(this.files[i]);
             }
-            this.entireFiles.push(file);
         }
         this.ownFiles = files_changed;
         this.files = obfiles_changed;
@@ -53320,22 +53325,26 @@ class FileManager {
         let temp = [];
         console.info("Requesting note infos to get tags...");
         // add record property
-        let ankicardid_to_file = {};
+        let ankicardid_to_fileindex = {};
+        let index = 0;
         for (let file of this.entireFiles) {
             let noteids = file.getNoteInfo();
             temp.push(noteids);
-            for (let id in noteids['params']['notes']) {
-                ankicardid_to_file[id] = file;
+            for (const key in noteids['params']['notes']) {
+                const noteid = noteids['params']['notes'][key];
+                ankicardid_to_fileindex[noteid] = index;
             }
+            index += 1;
         }
         requests.push(multi(temp));
         temp = [];
         let results = await invoke('multi', { actions: requests });
-        this.parseNoteInfo_hee(results, ankicardid_to_file);
+        this.parseNoteInfo_hee(results, ankicardid_to_fileindex);
         return results;
     }
     async parseNoteInfo_hee(results, ankicardid_to_file) {
-        for (let note in results[0]['result']) { //[request 번호]['result'][note 번호]['result'][data 번호]['tags']
+        // for loop with key value pair
+        for (let [key, note] of Object.entries(results[0]['result'])) { //[request 번호]['result'][note 번호]['result'][data 번호]['tags']
             let tags = note['result'][0]['tags'];
             // convert arrray to string
             let tags_string = tags.join(' ');
@@ -53346,8 +53355,17 @@ class FileManager {
             }
         }
     }
-    async deleteAnkiCard(nodeid, file) {
+    async deleteAnkiCard(nodeid, fileindex) {
         // delete anki card from obsidian note
+        let contents = this.entireFiles[fileindex].file;
+        let INLINE_END_REGEX = new RegExp(String.raw `%%\s.*?ID: ${nodeid}.*?` + this.data.INLINE_END_STRING + String.raw `%%\d\d\d\d-\d\d-\d\d%%`, "gm");
+        for (let note_match of contents.matchAll(this.data.INLINE_START_END_TIME)) {
+            if (INLINE_END_REGEX.exec(note_match[0]) !== null) {
+                let anki_start_contents = this.data.INLINE_START.exec(note_match[0]);
+                this.entireFiles[fileindex].file = contents.replace(anki_start_contents[0], "").replace(INLINE_END_REGEX, "");
+            }
+            this.app.vault.modify(this.entireobFiles[fileindex], this.entireFiles[fileindex].file);
+        }
         // delete anki card from
     }
     async requests_1() {

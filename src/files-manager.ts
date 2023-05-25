@@ -56,6 +56,7 @@ export class FileManager {
     data: ParsedSettings
     files: TFile[]
     ownFiles: Array<AllFile>
+    entireobFiles: TFile[]
     entireFiles: Array<AllFile>
     file_hashes: Record<string, string>
     requests_1_result: any
@@ -145,6 +146,8 @@ export class FileManager {
 
     async initialiseFiles() {
         await this.genAllFiles()
+        this.entireFiles = this.ownFiles
+        this.entireobFiles = this.files
         let files_changed: Array<AllFile> = []
         let obfiles_changed: TFile[] = []
         for (let index in this.ownFiles) {
@@ -157,7 +160,6 @@ export class FileManager {
                 files_changed.push(file)
                 obfiles_changed.push(this.files[i])
             }
-            this.entireFiles.push(file)
         }
         this.ownFiles = files_changed
         this.files = obfiles_changed
@@ -168,23 +170,27 @@ export class FileManager {
         let temp: AnkiConnect.AnkiConnectRequest[] = []
         console.info("Requesting note infos to get tags...")
         // add record property
-        let ankicardid_to_file = {}
+        let ankicardid_to_fileindex = {}
+        let index = 0
         for (let file of this.entireFiles) {
             let noteids = file.getNoteInfo()
             temp.push(noteids)
-            for (let id in noteids['params']['notes']) {
-                ankicardid_to_file[id] = file
+            for (const key in noteids['params']['notes']) {
+                const noteid = noteids['params']['notes'][key]
+                ankicardid_to_fileindex[noteid] = index
             }
+            index += 1
         }
         requests.push(AnkiConnect.multi(temp))
         temp = []
         let results = await AnkiConnect.invoke('multi', { actions: requests })
-        this.parseNoteInfo_hee(results, ankicardid_to_file)
+        this.parseNoteInfo_hee(results, ankicardid_to_fileindex)
         return results
     }
 
-    async parseNoteInfo_hee(results: any, ankicardid_to_file: { [x: number]: AllFile; }) {
-        for (let note in results[0]['result']) { //[request 번호]['result'][note 번호]['result'][data 번호]['tags']
+    async parseNoteInfo_hee(results: any, ankicardid_to_file: { [x: number]: number; }) {
+        // for loop with key value pair
+        for (let [key, note] of Object.entries(results[0]['result'])) { //[request 번호]['result'][note 번호]['result'][data 번호]['tags']
             let tags = note['result'][0]['tags']
             // convert arrray to string
             let tags_string = tags.join(' ')
@@ -197,8 +203,18 @@ export class FileManager {
         }
     }
 
-    async deleteAnkiCard(nodeid: number, file: AllFile) {
+    async deleteAnkiCard(nodeid: number, fileindex: number) {
         // delete anki card from obsidian note
+
+        let contents = this.entireFiles[fileindex].file
+        let INLINE_END_REGEX = new RegExp(String.raw`%%\s.*?ID: ${nodeid}.*?` + this.data.INLINE_END_STRING + String.raw`%%\d\d\d\d-\d\d-\d\d%%`, "gm")
+        for (let note_match of contents.matchAll(this.data.INLINE_START_END_TIME)) {
+            if (INLINE_END_REGEX.exec(note_match[0]) !== null) {
+                let anki_start_contents = this.data.INLINE_START.exec(note_match[0])
+                this.entireFiles[fileindex].file = contents.replace(anki_start_contents[0], "").replace(INLINE_END_REGEX, "")
+            }
+            this.app.vault.modify(this.entireobFiles[fileindex], this.entireFiles[fileindex].file)
+        }
 
         // delete anki card from
     }
