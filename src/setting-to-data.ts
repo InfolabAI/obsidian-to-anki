@@ -35,7 +35,8 @@ export async function settingToData(app: App, settings: PluginSettings, fields_d
     result.INLINE_REGEXP = new RegExp(escapeRegex(settings.Syntax["Begin Inline Note"]) + String.raw`([\s\S]*?)` + escapeRegex(settings.Syntax["End Inline Note"]), "gm")
     result.INLINE_START = new RegExp(escapeRegex(settings.Syntax["Begin Inline Note"]) + String.raw`.*?` + String.raw`Back:.*?%%`, "gm")
     result.INLINE_END_STRING = escapeRegex(settings.Syntax["End Inline Note"])
-    result.INLINE_START_END_TIME = new RegExp(escapeRegex(settings.Syntax["Begin Inline Note"]) + String.raw`([\s\S]*?)` + escapeRegex(settings.Syntax["End Inline Note"]) + String.raw`%%\d\d\d\d-\d\d-\d\d%%`, "gm")
+    result.INLINE_TIME = String.raw`(%%\d\d\d\d-\d\d-\d\d%%|)` // time 이 없을 수도 있기에 뒤에 | 붙임
+    result.INLINE_START_END_TIME = new RegExp(escapeRegex(settings.Syntax["Begin Inline Note"]) + String.raw`([\s\S]*?)` + escapeRegex(settings.Syntax["End Inline Note"]) + result.INLINE_TIME, "gm")
     result.EMPTY_REGEXP = new RegExp(escapeRegex(settings.Syntax["Delete Note Line"]) + ID_REGEXP_STR, "g")
 
     //Just a simple transfer

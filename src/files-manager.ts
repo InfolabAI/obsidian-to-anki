@@ -191,7 +191,12 @@ export class FileManager {
     async parseNoteInfo_hee(results: any, ankicardid_to_file: { [x: number]: number; }) {
         // for loop with key value pair
         for (let [key, note] of Object.entries(results[0]['result'])) { //[request 번호]['result'][note 번호]['result'][data 번호]['tags']
-            let tags = note['result'][0]['tags']
+            let tags = []
+            try {
+                tags = note['result'][0]['tags'] // 비어있으면 catch 로
+            } catch {
+                continue
+            }
             // convert arrray to string
             let tags_string = tags.join(' ')
             if (tags_string.includes('remove')) {
@@ -207,7 +212,7 @@ export class FileManager {
         // delete anki card from obsidian note
 
         let contents = this.entireFiles[fileindex].file
-        let INLINE_END_REGEX = new RegExp(String.raw`%%\s.*?ID: ${nodeid}.*?` + this.data.INLINE_END_STRING + String.raw`%%\d\d\d\d-\d\d-\d\d%%`, "gm")
+        let INLINE_END_REGEX = new RegExp(String.raw`%%\s.*?ID: ${nodeid}.*?` + this.data.INLINE_END_STRING + this.data.INLINE_TIME, "gm")
         for (let note_match of contents.matchAll(this.data.INLINE_START_END_TIME)) {
             if (INLINE_END_REGEX.exec(note_match[0]) !== null) {
                 let anki_start_contents = this.data.INLINE_START.exec(note_match[0])
@@ -217,6 +222,11 @@ export class FileManager {
         }
 
         // delete anki card from
+        let request = []
+        request.push(AnkiConnect.multi([AnkiConnect.deleteNotes([nodeid])]))
+        let result = await AnkiConnect.invoke('multi', { actions: request })
+        console.log(result)
+
     }
 
     async requests_1() {

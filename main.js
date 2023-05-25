@@ -868,7 +868,8 @@ async function settingToData(app, settings, fields_dict) {
     result.INLINE_REGEXP = new RegExp(escapeRegex(settings.Syntax["Begin Inline Note"]) + String.raw `([\s\S]*?)` + escapeRegex(settings.Syntax["End Inline Note"]), "gm");
     result.INLINE_START = new RegExp(escapeRegex(settings.Syntax["Begin Inline Note"]) + String.raw `.*?` + String.raw `Back:.*?%%`, "gm");
     result.INLINE_END_STRING = escapeRegex(settings.Syntax["End Inline Note"]);
-    result.INLINE_START_END_TIME = new RegExp(escapeRegex(settings.Syntax["Begin Inline Note"]) + String.raw `([\s\S]*?)` + escapeRegex(settings.Syntax["End Inline Note"]) + String.raw `%%\d\d\d\d-\d\d-\d\d%%`, "gm");
+    result.INLINE_TIME = String.raw `(%%\d\d\d\d-\d\d-\d\d%%|)`; // time 이 없을 수도 있기에 뒤에 | 붙임
+    result.INLINE_START_END_TIME = new RegExp(escapeRegex(settings.Syntax["Begin Inline Note"]) + String.raw `([\s\S]*?)` + escapeRegex(settings.Syntax["End Inline Note"]) + result.INLINE_TIME, "gm");
     result.EMPTY_REGEXP = new RegExp(escapeRegex(settings.Syntax["Delete Note Line"]) + ID_REGEXP_STR, "g");
     //Just a simple transfer
     result.curly_cloze = settings.Defaults.CurlyCloze;
@@ -53345,7 +53346,13 @@ class FileManager {
     async parseNoteInfo_hee(results, ankicardid_to_file) {
         // for loop with key value pair
         for (let [key, note] of Object.entries(results[0]['result'])) { //[request 번호]['result'][note 번호]['result'][data 번호]['tags']
-            let tags = note['result'][0]['tags'];
+            let tags = [];
+            try {
+                tags = note['result'][0]['tags']; // 비어있으면 catch 로
+            }
+            catch {
+                continue;
+            }
             // convert arrray to string
             let tags_string = tags.join(' ');
             if (tags_string.includes('remove')) {
@@ -53358,7 +53365,7 @@ class FileManager {
     async deleteAnkiCard(nodeid, fileindex) {
         // delete anki card from obsidian note
         let contents = this.entireFiles[fileindex].file;
-        let INLINE_END_REGEX = new RegExp(String.raw `%%\s.*?ID: ${nodeid}.*?` + this.data.INLINE_END_STRING + String.raw `%%\d\d\d\d-\d\d-\d\d%%`, "gm");
+        let INLINE_END_REGEX = new RegExp(String.raw `%%\s.*?ID: ${nodeid}.*?` + this.data.INLINE_END_STRING + this.data.INLINE_TIME, "gm");
         for (let note_match of contents.matchAll(this.data.INLINE_START_END_TIME)) {
             if (INLINE_END_REGEX.exec(note_match[0]) !== null) {
                 let anki_start_contents = this.data.INLINE_START.exec(note_match[0]);
@@ -53367,6 +53374,10 @@ class FileManager {
             this.app.vault.modify(this.entireobFiles[fileindex], this.entireFiles[fileindex].file);
         }
         // delete anki card from
+        let request = [];
+        request.push(multi([deleteNotes([nodeid])]));
+        let result = await invoke('multi', { actions: request });
+        console.log(result);
     }
     async requests_1() {
         let requests = [];
