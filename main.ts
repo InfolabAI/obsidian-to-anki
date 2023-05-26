@@ -211,7 +211,7 @@ export default class MyPlugin extends Plugin {
 		}
 	}
 
-	async scanVault() {
+	async scanVault(option: string) {
 		let backlinks: Backlinks = new Backlinks()
 		backlinks.getBackLinks_hcustom()
 
@@ -226,10 +226,14 @@ export default class MyPlugin extends Plugin {
 		}
 		new Notice("Successfully connected to Anki! This could take a few minutes - please don't close Anki until the plugin is finished")
 		const data: ParsedSettings = await settingToData(this.app, this.settings, this.fields_dict)
-		const manager = new FileManager(this.app, data, this.app.vault.getMarkdownFiles(), this.file_hashes, this.added_media)
+		let manager = new FileManager(this.app, data, this.app.vault.getMarkdownFiles(), this.file_hashes, this.added_media)
 		await manager.initialiseFiles()
 		let ret = await manager.requests_hee()
+		new Notice("Automatic deletion process is done. Now we are scanning the vault again.")
 		console.log(ret)
+
+		manager = new FileManager(this.app, data, this.app.vault.getMarkdownFiles(), this.file_hashes, this.added_media)
+		await manager.initialiseFiles()
 		await manager.requests_1()
 		this.added_media = Array.from(manager.added_media_set)
 		const hashes = manager.getHashes()
