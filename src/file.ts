@@ -365,7 +365,8 @@ export class AllFile extends AbstractFile {
                 if (parsed.identifier == CLOZE_ERROR) {
                     continue
                 }
-                new Notice(`Note with id ${parsed.identifier} in file ${this.path} does not exist in Anki!`, 50000)
+                new Notice(`Note with id ${parsed.identifier} does not exist in Anki!\n[FILE]\n${this.path}`, 50000)
+                console.log(`Note with id ${parsed.identifier} does not exist in Anki!\n[FILE]\n${this.path}`)
             } else {
                 this.notes_to_edit.push(parsed)
             }
