@@ -26,6 +26,7 @@ export async function settingToData(app: App, settings: PluginSettings, fields_d
         tags: [settings.Defaults.Tag]
     }
     result.EXISTING_IDS = await AnkiConnect.invoke('findNotes', { query: "" }) as number[]
+    result.EXISTING_IDS_TargetDeck = await AnkiConnect.invoke('findNotes', { query: `"deck:${settings.Defaults.Deck}"` }) as number[] //TODO 띄어쓰기 때문에 내부 "" 가 필수
 
     //RegExp section
     result.FROZEN_REGEXP = new RegExp(escapeRegex(settings.Syntax["Frozen Fields Line"]) + String.raw` - (.*?):\n((?:[^\n][\n]?)+)`, "g")

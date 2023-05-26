@@ -150,11 +150,15 @@ export class FileManager {
         this.entireobFiles = this.files
         let files_changed: Array<AllFile> = []
         let obfiles_changed: TFile[] = []
+        let existing_ids_in_vault = []
         for (let index in this.ownFiles) {
             const i = parseInt(index)
             let file = this.ownFiles[i]
+            if (option !== "all_del")
+                existing_ids_in_vault.push(...file.getAnkiCardIDS())
+
             file.scanFile()
-            if (option === "all") {
+            if (option.includes("all")) {
                 console.log("Scan all the files")
                 files_changed.push(file)
                 obfiles_changed.push(this.files[i])
@@ -169,9 +173,27 @@ export class FileManager {
                 }
             }
         }
+        if (option !== "all_del")
+            await this.delete_unused_ankicards(existing_ids_in_vault)
         this.ownFiles = files_changed
         this.files = obfiles_changed
     }
+
+    async delete_unused_ankicards(existing_ids_in_vault: Number[]) {
+        // remove existing ids from this.data.EXISTING_IDS_FromMD
+        this.data.template["deckName"]
+        this.data.EXISTING_IDS_TargetDeck = this.data.EXISTING_IDS_TargetDeck.filter(
+            (id: Number) => !existing_ids_in_vault.includes(id)
+        );
+        //let request = AnkiConnect.multi([AnkiConnect.deleteNotes(this.data.EXISTING_IDS_TargetDeck)])
+        if (this.data.EXISTING_IDS_TargetDeck.length > 0) {
+            console.info(`Deleting unused Anki cards... ${this.data.EXISTING_IDS_TargetDeck}`)
+            new Notice(`Deleting unused Anki cards... ${this.data.EXISTING_IDS_TargetDeck}`, 50000)
+            let result = await AnkiConnect.invoke('deleteNotes', { notes: this.data.EXISTING_IDS_TargetDeck })
+            console.log(result)
+        }
+    }
+
 
     async requests_hee() {
         let requests: AnkiConnect.AnkiConnectRequest[] = []
@@ -213,14 +235,14 @@ export class FileManager {
                     let ankicardid = each_anki_card['noteId']
                     let front = each_anki_card['fields']['Front'].value
                     console.log(`anki card with remove tags is found. front: ${front} id: ${ankicardid}`)
-                    await this.deleteAnkiCard(ankicardid, front, ankicardid_to_file[ankicardid])
+                    await this.deleteAnkiCard_in_obsidian(ankicardid, front, ankicardid_to_file[ankicardid])
                 }
             }
 
         }
     }
 
-    async deleteAnkiCard(ankicardid: number, front: string, fileindex: number) {
+    async deleteAnkiCard_in_obsidian(ankicardid: number, front: string, fileindex: number) {
         let contents = this.entireFiles[fileindex].file
         let INLINE_END_REGEX = new RegExp(String.raw`%%\s.*?ID: ${ankicardid}.*?` + this.data.INLINE_END_STRING + this.data.INLINE_TIME, "gm")
         for (let note_match of contents.matchAll(this.data.INLINE_START_END_TIME)) {

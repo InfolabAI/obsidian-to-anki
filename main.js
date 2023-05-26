@@ -872,6 +872,7 @@ async function settingToData(app, settings, fields_dict) {
         tags: [settings.Defaults.Tag]
     };
     result.EXISTING_IDS = await invoke('findNotes', { query: "" });
+    result.EXISTING_IDS_TargetDeck = await invoke('findNotes', { query: `"deck:${settings.Defaults.Deck}"` }); //TODO 띄어쓰기 때문에 내부 "" 가 필수
     //RegExp section
     result.FROZEN_REGEXP = new RegExp(escapeRegex(settings.Syntax["Frozen Fields Line"]) + String.raw ` - (.*?):\n((?:[^\n][\n]?)+)`, "g");
     result.DECK_REGEXP = new RegExp(String.raw `^` + escapeRegex(settings.Syntax["Target Deck Line"]) + String.raw `(?:\n|: )(.*)`, "m");
@@ -53182,6 +53183,21 @@ class AllFile extends AbstractFile {
     max(a, b) {
         return a > b ? a : b;
     }
+    getAnkiCardIDS() {
+        try {
+            let IDS = [];
+            for (let matches of this.file.matchAll(/%%<br>STARTI[\s\S]*?ID: (\d+?) /g)) {
+                let id = Number(matches[1]);
+                IDS.push(id);
+            }
+            let matches = /^--[\s\S]*?anki_id: (\d+)\n[\s\S]*?---\n/g.exec(this.file);
+            IDS.push(Number(matches[1]));
+            return IDS;
+        }
+        catch {
+            return [];
+        }
+    }
     preprocess_file_contents(str) {
         str = str.replaceAll(/%%[\s\S]*?%%/g, ""); // annotation 제거
         str = str.replaceAll(/<!--[\s\S]*?-->/g, ""); // annotation 제거
@@ -53208,7 +53224,7 @@ class AllFile extends AbstractFile {
         //let tfile = app.vault.getAbstractFileByPath(this.path) as TFile
         //console.log(this.file)
         let text = this.file;
-        if (/\(T\)|\(Cleaning\)|\(Meeting\)/g.exec(this.path) !== null) {
+        if (/Welcome To My|\(T\)|\(Cleaning\)|\(Meeting\)/g.exec(this.path) !== null) {
             return;
         }
         text = this.preprocess_file_contents(text);
@@ -53411,11 +53427,14 @@ class FileManager {
         this.entireobFiles = this.files;
         let files_changed = [];
         let obfiles_changed = [];
+        let existing_ids_in_vault = [];
         for (let index in this.ownFiles) {
             const i = parseInt(index);
             let file = this.ownFiles[i];
+            if (option !== "all_del")
+                existing_ids_in_vault.push(...file.getAnkiCardIDS());
             file.scanFile();
-            if (option === "all") {
+            if (option.includes("all")) {
                 console.log("Scan all the files");
                 files_changed.push(file);
                 obfiles_changed.push(this.files[i]);
@@ -53430,8 +53449,22 @@ class FileManager {
                 }
             }
         }
+        if (option !== "all_del")
+            await this.delete_unused_ankicards(existing_ids_in_vault);
         this.ownFiles = files_changed;
         this.files = obfiles_changed;
+    }
+    async delete_unused_ankicards(existing_ids_in_vault) {
+        // remove existing ids from this.data.EXISTING_IDS_FromMD
+        this.data.template["deckName"];
+        this.data.EXISTING_IDS_TargetDeck = this.data.EXISTING_IDS_TargetDeck.filter((id) => !existing_ids_in_vault.includes(id));
+        //let request = AnkiConnect.multi([AnkiConnect.deleteNotes(this.data.EXISTING_IDS_TargetDeck)])
+        if (this.data.EXISTING_IDS_TargetDeck.length > 0) {
+            console.info(`Deleting unused Anki cards... ${this.data.EXISTING_IDS_TargetDeck}`);
+            new obsidian.Notice(`Deleting unused Anki cards... ${this.data.EXISTING_IDS_TargetDeck}`, 50000);
+            let result = await invoke('deleteNotes', { notes: this.data.EXISTING_IDS_TargetDeck });
+            console.log(result);
+        }
     }
     async requests_hee() {
         let requests = [];
@@ -53470,12 +53503,12 @@ class FileManager {
                     let ankicardid = each_anki_card['noteId'];
                     let front = each_anki_card['fields']['Front'].value;
                     console.log(`anki card with remove tags is found. front: ${front} id: ${ankicardid}`);
-                    await this.deleteAnkiCard(ankicardid, front, ankicardid_to_file[ankicardid]);
+                    await this.deleteAnkiCard_in_obsidian(ankicardid, front, ankicardid_to_file[ankicardid]);
                 }
             }
         }
     }
-    async deleteAnkiCard(ankicardid, front, fileindex) {
+    async deleteAnkiCard_in_obsidian(ankicardid, front, fileindex) {
         let contents = this.entireFiles[fileindex].file;
         let INLINE_END_REGEX = new RegExp(String.raw `%%\s.*?ID: ${ankicardid}.*?` + this.data.INLINE_END_STRING + this.data.INLINE_TIME, "gm");
         for (let note_match of contents.matchAll(this.data.INLINE_START_END_TIME)) {
@@ -53874,7 +53907,7 @@ class MyPlugin extends obsidian.Plugin {
         let request_hee_option = "all";
         await manager.initialiseFiles(request_hee_option);
         let ret = await manager.requests_hee();
-        new obsidian.Notice("Automatic deletion process is done. Now we are scanning the vault again.");
+        new obsidian.Notice("Automatic anki(remove tag) -> obsidian deletion process is done. Now we are scanning the vault again.");
         console.log(ret);
         manager = new FileManager(this.app, data, this.app.vault.getMarkdownFiles(), this.file_hashes, this.added_media);
         await manager.initialiseFiles(option);

@@ -407,6 +407,23 @@ export class AllFile extends AbstractFile {
     max(a: number, b: number): number {
         return a > b ? a : b;
     }
+
+    getAnkiCardIDS(): number[] {
+        try {
+            let IDS = []
+            for (let matches of this.file.matchAll(/%%<br>STARTI[\s\S]*?ID: (\d+?) /g)) {
+                let id = Number(matches[1])
+                IDS.push(id)
+            }
+            let matches = /^--[\s\S]*?anki_id: (\d+)\n[\s\S]*?---\n/g.exec(this.file)
+            IDS.push(Number(matches[1]))
+            return IDS
+        }
+        catch {
+            return []
+        }
+    }
+
     preprocess_file_contents(str: string): string {
         str = str.replaceAll(/%%[\s\S]*?%%/g, "") // annotation 제거
         str = str.replaceAll(/<!--[\s\S]*?-->/g, "") // annotation 제거
@@ -434,7 +451,7 @@ export class AllFile extends AbstractFile {
         //let tfile = app.vault.getAbstractFileByPath(this.path) as TFile
         //console.log(this.file)
         let text = this.file
-        if (/\(T\)|\(Cleaning\)|\(Meeting\)/g.exec(this.path) !== null) {
+        if (/Welcome To My|\(T\)|\(Cleaning\)|\(Meeting\)/g.exec(this.path) !== null) {
             return
         }
         text = this.preprocess_file_contents(text)

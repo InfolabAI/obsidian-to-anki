@@ -231,7 +231,7 @@ export default class MyPlugin extends Plugin {
 		let request_hee_option = "all"
 		await manager.initialiseFiles(request_hee_option)
 		let ret = await manager.requests_hee()
-		new Notice("Automatic deletion process is done. Now we are scanning the vault again.")
+		new Notice("Automatic anki(remove tag) -> obsidian deletion process is done. Now we are scanning the vault again.")
 		console.log(ret)
 
 		manager = new FileManager(this.app, data, this.app.vault.getMarkdownFiles(), this.file_hashes, this.added_media)

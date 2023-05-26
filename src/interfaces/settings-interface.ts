@@ -38,6 +38,7 @@ export interface FileData {
 	context_fields: Record<string, string>
 	template: AnkiConnectNote
 	EXISTING_IDS: number[]
+	EXISTING_IDS_TargetDeck: number[]
 	vault_name: string
 
 	FROZEN_REGEXP: RegExp
