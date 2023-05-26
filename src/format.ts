@@ -200,7 +200,7 @@ export class FormatConverter {
     }
 
     markdownInlineCodeToHtml(markdownCode: string): string {
-        markdownCode = markdownCode.trim().replace(/(?<!`)`{1}([^`]+?)`{1}(?!`)/g, (match, code) => {
+        markdownCode = markdownCode.replace(/(?<!`)`{1}([^`]+?)`{1}(?!`)/g, (match, code) => {
             code = code.replaceAll("\<", "&lt;").replaceAll("\>", "&gt;") // html code 표현을 위함
             return `<code>${code}</code>`
         });
@@ -230,15 +230,15 @@ export class FormatConverter {
             const match = line.match(/^(\s*)(.*)$/);
             if (!match) continue;
 
-            const [, indent, content] = match;
+            const [, indent, line_content] = match;
             const currIndentLevel = indent.length;
 
             // 필요할 때만 불릿 생성
-            if (!content.match("^(- .*)")) { // Table 은 맨앞에 - 가 오지 않으며, 불릿은 indent 를 제외하면 맨 앞에 - 가 옴
+            if (!line_content.match(/^- .*|^\d*?\. .*/gm)) { // Table 은 맨앞에 - 가 오지 않으며, 불릿이나 숫자는 indent 를 제외하면 맨 앞에 - 또는 숫자가 옴
                 //if (indentLevel > currIndentLevel) { // code black 안에서 더 들여쓰기가 되면, currIndentLevel 이 더 커서 에러남
                 //    result += "</ul>".repeat(indentLevel - currIndentLevel); // 불릿이 종료된 경우, indent 0으로 맞춤
                 //}
-                result += indent + content;
+                result += indent + line_content;
             }
             else {
                 // indent level 조절
@@ -247,7 +247,7 @@ export class FormatConverter {
                 } else if (currIndentLevel < indentLevel) {
                     result += "</ul>".repeat(indentLevel - currIndentLevel);
                 }
-                result += `<li>${content.trim()}</li>`;
+                result += `<li>${line_content.trim()}</li>`;
             }
 
             indentLevel = currIndentLevel;
