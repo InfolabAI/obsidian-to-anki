@@ -53329,11 +53329,11 @@ class FileManager {
         let ankicardid_to_fileindex = {};
         let index = 0;
         for (let file of this.entireFiles) {
-            let noteids = file.getNoteInfo();
-            temp.push(noteids);
-            for (const key in noteids['params']['notes']) {
-                const noteid = noteids['params']['notes'][key];
-                ankicardid_to_fileindex[noteid] = index;
+            let ankicardids = file.getNoteInfo();
+            temp.push(ankicardids);
+            for (const key in ankicardids['params']['notes']) {
+                const ankicardid = ankicardids['params']['notes'][key];
+                ankicardid_to_fileindex[ankicardid] = index;
             }
             index += 1;
         }
@@ -53345,39 +53345,68 @@ class FileManager {
     }
     async parseNoteInfo_hee(results, ankicardid_to_file) {
         // for loop with key value pair
-        for (let [key, note] of Object.entries(results[0]['result'])) { //[request 번호]['result'][note 번호]['result'][data 번호]['tags']
-            let tags = [];
-            try {
-                tags = note['result'][0]['tags']; // 비어있으면 catch 로
-            }
-            catch {
+        for (let [key, ankicard] of Object.entries(results[0]['result'])) { //[request 번호]['result'][note 번호]['result'][data 번호]['tags']
+            if (ankicard['result'].length == 0) {
                 continue;
             }
-            // convert arrray to string
-            let tags_string = tags.join(' ');
-            if (tags_string.includes('remove')) {
-                // delete anki card
-                let noteid = note['result'][0]['noteId'];
-                await this.deleteAnkiCard(noteid, ankicardid_to_file[noteid]);
+            for (let [key, each_anki_card] of Object.entries(ankicard['result'])) {
+                let tags = each_anki_card['tags'];
+                // convert arrray to string
+                let tags_string = tags.join(' ');
+                if (tags_string.includes('remove')) {
+                    // delete anki card
+                    let ankicardid = ankicard['result'][0]['noteId'];
+                    let front = ankicard['result'][0]['fields']['Front'].value;
+                    console.log(`anki card with remove tags is found. front: ${front} id: ${ankicardid}`);
+                    await this.deleteAnkiCard(ankicardid, front, ankicardid_to_file[ankicardid]);
+                }
             }
         }
     }
-    async deleteAnkiCard(nodeid, fileindex) {
-        // delete anki card from obsidian note
-        let contents = this.entireFiles[fileindex].file;
-        let INLINE_END_REGEX = new RegExp(String.raw `%%\s.*?ID: ${nodeid}.*?` + this.data.INLINE_END_STRING + this.data.INLINE_TIME, "gm");
-        for (let note_match of contents.matchAll(this.data.INLINE_START_END_TIME)) {
-            if (INLINE_END_REGEX.exec(note_match[0]) !== null) {
-                let anki_start_contents = this.data.INLINE_START.exec(note_match[0]);
-                this.entireFiles[fileindex].file = contents.replace(anki_start_contents[0], "").replace(INLINE_END_REGEX, "");
-            }
-            this.app.vault.modify(this.entireobFiles[fileindex], this.entireFiles[fileindex].file);
+    async deleteAnkiCard(ankicardid, front, fileindex) {
+        if (ankicardid === 1685065714295) {
+            console.log('breakpoint');
         }
-        // delete anki card from
-        let request = [];
-        request.push(multi([deleteNotes([nodeid])]));
-        let result = await invoke('multi', { actions: request });
-        console.log(result);
+        let contents = this.entireFiles[fileindex].file;
+        let INLINE_END_REGEX = new RegExp(String.raw `%%\s.*?ID: ${ankicardid}.*?` + this.data.INLINE_END_STRING + this.data.INLINE_TIME, "gm");
+        for (let note_match of contents.matchAll(this.data.INLINE_START_END_TIME)) {
+            //iterate each anki cards in a obsidian note
+            if (note_match[0].match(INLINE_END_REGEX) != null) {
+                // delete anki card from obsidian note
+                let anki_start_contents = note_match[0].match(this.data.INLINE_START);
+                this.entireFiles[fileindex].file = contents.replace(anki_start_contents[0], "").replace(INLINE_END_REGEX, "");
+                if (this.entireFiles[fileindex].file == contents) {
+                    console.log(`Deleting anki card from obsidian note is failed. ankicardid:${ankicardid}, obsidianNoteContens ${contents}`);
+                    new obsidian.Notice("Deleting anki card from obsidian note is failed. Check the log.");
+                    throw new Error("Deleting anki card from obsidian note is failed");
+                }
+                this.app.vault.modify(this.entireobFiles[fileindex], this.entireFiles[fileindex].file);
+                // delete anki card from anki
+                let request = [];
+                request.push(multi([deleteNotes([ankicardid])]));
+                let result = await invoke('multi', { actions: request });
+                console.log(result);
+                // The Records of Deleted Anki Cards
+                try {
+                    //create log file if not exist
+                    let log_file = this.app.vault.getAbstractFileByPath('3. Private/The Records of Deleted Anki Cards.md');
+                    if (log_file == null) {
+                        await this.app.vault.create('./3. Private/The Records of Deleted Anki Cards.md', '');
+                        log_file = this.app.vault.getAbstractFileByPath('3. Private/The Records of Deleted Anki Cards.md');
+                    }
+                    let log_file_contents = await this.app.vault.read(log_file);
+                    let today = new Date();
+                    let date = today.getFullYear() + '-' + (today.getMonth() + 1) + '-' + today.getDate();
+                    let time = today.getHours() + ":" + today.getMinutes() + ":" + today.getSeconds();
+                    log_file_contents += `\n- ${date} ${time} (Anki card id: ${ankicardid}) in [${this.entireFiles[fileindex].path}](${this.entireFiles[fileindex].url})\n\`\`\`markdown\n${front}\n\`\`\``;
+                    await this.app.vault.modify(log_file, log_file_contents);
+                    new obsidian.Notice(`The records of deleted anki cards are updated. Check ./3. Private/The Records of Deleted Anki Cards.md`, 5000);
+                }
+                catch (error) {
+                    new obsidian.Notice(`Writing deleted anki cards into log file is failed. Check the error [${error}]`, 50000);
+                }
+            }
+        }
     }
     async requests_1() {
         let requests = [];

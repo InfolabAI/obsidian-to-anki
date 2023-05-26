@@ -45,6 +45,10 @@ export interface FileData {
 	TAG_REGEXP: RegExp
 	NOTE_REGEXP: RegExp
 	INLINE_REGEXP: RegExp
+	INLINE_START: RegExp
+	INLINE_END_STRING: string
+	INLINE_TIME: string
+	INLINE_START_END_TIME: RegExp
 	EMPTY_REGEXP: RegExp
 
 	curly_cloze: boolean
@@ -55,7 +59,7 @@ export interface FileData {
 }
 
 export interface ParsedSettings extends FileData {
-    add_file_link: boolean
+	add_file_link: boolean
 	folder_decks: Record<string, string>
 	folder_tags: Record<string, string>
 }
