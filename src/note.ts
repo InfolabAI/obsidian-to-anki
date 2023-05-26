@@ -230,6 +230,26 @@ export class ExtendedInlineNote extends AbstractNote {
         return [line, this.current_field]
     }
 
+    removeCommonIndent(text: string): string {
+        const lines = text.split('\n').filter(line => line.trim() !== '');
+
+        if (lines.length === 0) {
+            return '';
+        }
+
+        const firstLineIndent = lines[0].search(/\S/);
+        let commonIndent = firstLineIndent;
+
+        for (let i = 1; i < lines.length; i++) {
+            const lineIndent = lines[i].search(/\S/);
+            commonIndent = Math.min(commonIndent, lineIndent);
+        }
+
+        const trimmedLines = lines.map(line => line.slice(commonIndent));
+        return trimmedLines.join('\n');
+    }
+
+
     getFields(): Record<string, string> {
         let fields: Record<string, string> = {}
         for (let field of this.field_names) {
@@ -246,7 +266,7 @@ export class ExtendedInlineNote extends AbstractNote {
         }
         for (let key in fields) {
             fields[key] = this.formatter.format(
-                fields[key].trim(),
+                this.removeCommonIndent(fields[key]),
                 false, false
             ).trim()
         }

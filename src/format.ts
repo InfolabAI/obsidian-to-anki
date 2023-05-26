@@ -200,6 +200,7 @@ export class FormatConverter {
     }
 
     markdownInlineCodeToHtml(markdownCode: string): string {
+        // inline code 가 있다면 그 내부 html 코드는 표현형태로 바꾼다
         markdownCode = markdownCode.replace(/(?<!`)`{1}([^`]+?)`{1}(?!`)/g, (match, code) => {
             code = code.replaceAll("\<", "&lt;").replaceAll("\>", "&gt;") // html code 표현을 위함
             return `<code>${code}</code>`
@@ -210,10 +211,10 @@ export class FormatConverter {
 
 
     toHtml(str: string): string {
-        const lines = str.trim().split("\n");
+        const lines = str.split("\n");
 
         let result = "";
-        let indentLevel = 0;
+        let indentLevel = -1; // 불릿이면 첫 출에도 ul 을 넣기 위함
 
         let is_in_code_block = false
         for (let line of lines) {

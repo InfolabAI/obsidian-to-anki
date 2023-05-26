@@ -762,6 +762,20 @@ class ExtendedInlineNote extends AbstractNote {
         }
         return [line, this.current_field];
     }
+    removeCommonIndent(text) {
+        const lines = text.split('\n').filter(line => line.trim() !== '');
+        if (lines.length === 0) {
+            return '';
+        }
+        const firstLineIndent = lines[0].search(/\S/);
+        let commonIndent = firstLineIndent;
+        for (let i = 1; i < lines.length; i++) {
+            const lineIndent = lines[i].search(/\S/);
+            commonIndent = Math.min(commonIndent, lineIndent);
+        }
+        const trimmedLines = lines.map(line => line.slice(commonIndent));
+        return trimmedLines.join('\n');
+    }
     getFields() {
         let fields = {};
         for (let field of this.field_names) {
@@ -777,7 +791,7 @@ class ExtendedInlineNote extends AbstractNote {
             fields[this.current_field] += word + " ";
         }
         for (let key in fields) {
-            fields[key] = this.formatter.format(fields[key].trim(), false, false).trim();
+            fields[key] = this.formatter.format(this.removeCommonIndent(fields[key]), false, false).trim();
         }
         return fields;
     }
@@ -52755,6 +52769,7 @@ class FormatConverter {
         return markdownCode;
     }
     markdownInlineCodeToHtml(markdownCode) {
+        // inline code 가 있다면 그 내부 html 코드는 표현형태로 바꾼다
         markdownCode = markdownCode.replace(/(?<!`)`{1}([^`]+?)`{1}(?!`)/g, (match, code) => {
             code = code.replaceAll("\<", "&lt;").replaceAll("\>", "&gt;"); // html code 표현을 위함
             return `<code>${code}</code>`;
@@ -52762,9 +52777,9 @@ class FormatConverter {
         return markdownCode;
     }
     toHtml(str) {
-        const lines = str.trim().split("\n");
+        const lines = str.split("\n");
         let result = "";
-        let indentLevel = 0;
+        let indentLevel = -1; // 불릿이면 첫 출에도 ul 을 넣기 위함
         let is_in_code_block = false;
         for (let line of lines) {
             if (line.match(/```(\w+)$/) !== null) {
