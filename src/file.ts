@@ -409,19 +409,19 @@ export class AllFile extends AbstractFile {
     }
 
     getAnkiCardIDS(): number[] {
-        try {
-            let IDS = []
-            for (let matches of this.file.matchAll(/%%<br>STARTI[\s\S]*?ID: (\d+?) /g)) {
-                let id = Number(matches[1])
-                IDS.push(id)
-            }
-            let matches = /^--[\s\S]*?anki_id: (\d+)\n[\s\S]*?---\n/g.exec(this.file)
+        let IDS = []
+        if (this.file.includes("AAAI23(정진홍교수님)에서 미래정보예측에")) {
+            console.log("breakpoint")
+        }
+        for (let matches of this.file.matchAll(/%%<br>STARTI[\s\S]*?ID: (\d+?) /g)) {
+            let id = Number(matches[1])
+            IDS.push(id)
+        }
+        let matches = /^--[\s\S]*?anki_id: (\d+)\n[\s\S]*?---\n/g.exec(this.file)
+        if (matches !== null) {
             IDS.push(Number(matches[1]))
-            return IDS
         }
-        catch {
-            return []
-        }
+        return IDS
     }
 
     preprocess_file_contents(str: string): string {
@@ -451,7 +451,7 @@ export class AllFile extends AbstractFile {
         //let tfile = app.vault.getAbstractFileByPath(this.path) as TFile
         //console.log(this.file)
         let text = this.file
-        if (/Welcome To My|\(T\)|\(Cleaning\)|\(Meeting\)/g.exec(this.path) !== null) {
+        if (/Welcome to My|Templete\/|0. Inbox|\(T\)|\(Cleaning\)|\(Meeting\)/g.exec(this.path) !== null) {
             return
         }
         text = this.preprocess_file_contents(text)

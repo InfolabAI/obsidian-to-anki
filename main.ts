@@ -228,7 +228,7 @@ export default class MyPlugin extends Plugin {
 		new Notice("Successfully connected to Anki! This could take a few minutes - please don't close Anki until the plugin is finished")
 		const data: ParsedSettings = await settingToData(this.app, this.settings, this.fields_dict)
 		let manager = new FileManager(this.app, data, this.app.vault.getMarkdownFiles(), this.file_hashes, this.added_media)
-		let request_hee_option = "all"
+		let request_hee_option = "all_del"
 		await manager.initialiseFiles(request_hee_option)
 		let ret = await manager.requests_hee()
 		new Notice("Automatic anki(remove tag) -> obsidian deletion process is done. Now we are scanning the vault again.")

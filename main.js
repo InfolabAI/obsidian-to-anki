@@ -53184,19 +53184,19 @@ class AllFile extends AbstractFile {
         return a > b ? a : b;
     }
     getAnkiCardIDS() {
-        try {
-            let IDS = [];
-            for (let matches of this.file.matchAll(/%%<br>STARTI[\s\S]*?ID: (\d+?) /g)) {
-                let id = Number(matches[1]);
-                IDS.push(id);
-            }
-            let matches = /^--[\s\S]*?anki_id: (\d+)\n[\s\S]*?---\n/g.exec(this.file);
+        let IDS = [];
+        if (this.file.includes("AAAI23(정진홍교수님)에서 미래정보예측에")) {
+            console.log("breakpoint");
+        }
+        for (let matches of this.file.matchAll(/%%<br>STARTI[\s\S]*?ID: (\d+?) /g)) {
+            let id = Number(matches[1]);
+            IDS.push(id);
+        }
+        let matches = /^--[\s\S]*?anki_id: (\d+)\n[\s\S]*?---\n/g.exec(this.file);
+        if (matches !== null) {
             IDS.push(Number(matches[1]));
-            return IDS;
         }
-        catch {
-            return [];
-        }
+        return IDS;
     }
     preprocess_file_contents(str) {
         str = str.replaceAll(/%%[\s\S]*?%%/g, ""); // annotation 제거
@@ -53224,7 +53224,7 @@ class AllFile extends AbstractFile {
         //let tfile = app.vault.getAbstractFileByPath(this.path) as TFile
         //console.log(this.file)
         let text = this.file;
-        if (/Welcome To My|\(T\)|\(Cleaning\)|\(Meeting\)/g.exec(this.path) !== null) {
+        if (/Welcome to My|Templete\/|0. Inbox|\(T\)|\(Cleaning\)|\(Meeting\)/g.exec(this.path) !== null) {
             return;
         }
         text = this.preprocess_file_contents(text);
@@ -53431,9 +53431,7 @@ class FileManager {
         for (let index in this.ownFiles) {
             const i = parseInt(index);
             let file = this.ownFiles[i];
-            if (option !== "all_del") {
-                existing_ids_in_vault.push(...file.getAnkiCardIDS());
-            }
+            existing_ids_in_vault.push(...file.getAnkiCardIDS());
             file.scanFile();
             if (option.includes("all")) {
                 console.log("Scan all the files");
@@ -53906,7 +53904,7 @@ class MyPlugin extends obsidian.Plugin {
         new obsidian.Notice("Successfully connected to Anki! This could take a few minutes - please don't close Anki until the plugin is finished");
         const data = await settingToData(this.app, this.settings, this.fields_dict);
         let manager = new FileManager(this.app, data, this.app.vault.getMarkdownFiles(), this.file_hashes, this.added_media);
-        let request_hee_option = "all";
+        let request_hee_option = "all_del";
         await manager.initialiseFiles(request_hee_option);
         let ret = await manager.requests_hee();
         new obsidian.Notice("Automatic anki(remove tag) -> obsidian deletion process is done. Now we are scanning the vault again.");
