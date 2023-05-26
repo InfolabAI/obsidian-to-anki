@@ -57,6 +57,10 @@ export class FormatConverter {
         return "obsidian://open?vault=" + encodeURIComponent(this.vault_name) + String.raw`&file=` + encodeURIComponent(link)
     }
 
+    ret_url_format(obsidian_note_title: string, url: string): string {
+        return `<a href="${url}" class="obsidian-link">${obsidian_note_title}</a>`
+    }
+
     format_note_with_url(note: AnkiConnectNote, url: string, field: string): void {
         note.fields[field] += '<br><a href="' + url + '" class="obsidian-link">Obsidian</a>'
     }
@@ -267,9 +271,6 @@ export class FormatConverter {
     }
 
     format(note_text: string, cloze: boolean, highlights_to_cloze: boolean): string {
-        if (note_text.includes("in typescript?")) {
-            console.log("breakpoint")
-        }
         note_text = this.obsidian_to_anki_math(note_text)
         //Extract the parts that are anki math
         let math_matches: string[]

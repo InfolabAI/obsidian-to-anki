@@ -91,12 +91,10 @@ abstract class AbstractNote {
         template["fields"] = this.getFields()
         const file_link_fields = data.file_link_fields
         if (url) {
-            if (context) {
-                let folder_path = context.split("/")
-                folder_path.pop()
-                template["fields"][file_link_fields[this.note_type]] += `<font color=#009900>${context.split(" > ")[0].split("/").pop().replaceAll(".md", "")}</font>` + ` (${folder_path.join("/")})`
-            }
-            this.formatter.format_note_with_url(template, url, file_link_fields[this.note_type])
+            let folder_path = context.split("/")
+            folder_path.pop()
+            let note_url_format = this.formatter.ret_url_format(context.split(" > ")[0].split("/").pop().replaceAll(".md", ""), url)
+            template["fields"][file_link_fields[this.note_type]] += note_url_format + ` (${folder_path.join("/")})`
         }
         if (Object.keys(frozen_fields_dict).length) {
             this.formatter.format_note_with_frozen_fields(template, frozen_fields_dict)

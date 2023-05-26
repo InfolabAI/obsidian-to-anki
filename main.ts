@@ -212,6 +212,7 @@ export default class MyPlugin extends Plugin {
 	}
 
 	async scanVault(option: string) {
+		// option is either "all" or "new"
 		let backlinks: Backlinks = new Backlinks()
 		backlinks.getBackLinks_hcustom()
 
@@ -227,13 +228,14 @@ export default class MyPlugin extends Plugin {
 		new Notice("Successfully connected to Anki! This could take a few minutes - please don't close Anki until the plugin is finished")
 		const data: ParsedSettings = await settingToData(this.app, this.settings, this.fields_dict)
 		let manager = new FileManager(this.app, data, this.app.vault.getMarkdownFiles(), this.file_hashes, this.added_media)
-		await manager.initialiseFiles()
+		let request_hee_option = "all"
+		await manager.initialiseFiles(request_hee_option)
 		let ret = await manager.requests_hee()
 		new Notice("Automatic deletion process is done. Now we are scanning the vault again.")
 		console.log(ret)
 
 		manager = new FileManager(this.app, data, this.app.vault.getMarkdownFiles(), this.file_hashes, this.added_media)
-		await manager.initialiseFiles()
+		await manager.initialiseFiles(option)
 		await manager.requests_1()
 		this.added_media = Array.from(manager.added_media_set)
 		const hashes = manager.getHashes()
@@ -275,14 +277,21 @@ export default class MyPlugin extends Plugin {
 		this.addSettingTab(new SettingsTab(this.app, this));
 
 		this.addRibbonIcon('anki', 'Obsidian_to_Anki - Scan Vault', async () => {
-			await this.scanVault()
+			await this.scanVault("new")
 		})
 
+		this.addCommand({
+			id: 'anki-scan-vault-all',
+			name: 'Scan Vault and Update All Anki Cards',
+			callback: async () => {
+				await this.scanVault("all")
+			}
+		})
 		this.addCommand({
 			id: 'anki-scan-vault',
 			name: 'Scan Vault',
 			callback: async () => {
-				await this.scanVault()
+				await this.scanVault("new")
 			}
 		})
 		this.addCommand({

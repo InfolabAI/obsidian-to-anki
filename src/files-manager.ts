@@ -144,7 +144,7 @@ export class FileManager {
         }
     }
 
-    async initialiseFiles() {
+    async initialiseFiles(option: string) {
         await this.genAllFiles()
         this.entireFiles = this.ownFiles
         this.entireobFiles = this.files
@@ -154,11 +154,19 @@ export class FileManager {
             const i = parseInt(index)
             let file = this.ownFiles[i]
             file.scanFile()
-            if (!(this.file_hashes.hasOwnProperty(file.path) && file.getHash() === this.file_hashes[file.path])) {
-                //Indicates it's changed or new
-                console.info("Scanning ", file.path, "as it's changed or new.")
+            if (option === "all") {
+                console.log("Scan all the files")
                 files_changed.push(file)
                 obfiles_changed.push(this.files[i])
+            }
+            else {
+                console.log("Scan only updated files")
+                if (!(this.file_hashes.hasOwnProperty(file.path) && file.getHash() === this.file_hashes[file.path])) {
+                    //Indicates it's changed or new
+                    console.log("Scanning ", file.path, "as it's changed or new.")
+                    files_changed.push(file)
+                    obfiles_changed.push(this.files[i])
+                }
             }
         }
         this.ownFiles = files_changed

@@ -640,12 +640,10 @@ class AbstractNote {
         template["fields"] = this.getFields();
         const file_link_fields = data.file_link_fields;
         if (url) {
-            if (context) {
-                let folder_path = context.split("/");
-                folder_path.pop();
-                template["fields"][file_link_fields[this.note_type]] += `<font color=#009900>${context.split(" > ")[0].split("/").pop().replaceAll(".md", "")}</font>` + ` (${folder_path.join("/")})`;
-            }
-            this.formatter.format_note_with_url(template, url, file_link_fields[this.note_type]);
+            let folder_path = context.split("/");
+            folder_path.pop();
+            let note_url_format = this.formatter.ret_url_format(context.split(" > ")[0].split("/").pop().replaceAll(".md", ""), url);
+            template["fields"][file_link_fields[this.note_type]] += note_url_format + ` (${folder_path.join("/")})`;
         }
         if (Object.keys(frozen_fields_dict).length) {
             this.formatter.format_note_with_frozen_fields(template, frozen_fields_dict);
@@ -52646,6 +52644,9 @@ class FormatConverter {
     getUrlFromLink(link) {
         return "obsidian://open?vault=" + encodeURIComponent(this.vault_name) + String.raw `&file=` + encodeURIComponent(link);
     }
+    ret_url_format(obsidian_note_title, url) {
+        return `<a href="${url}" class="obsidian-link">${obsidian_note_title}</a>`;
+    }
     format_note_with_url(note, url, field) {
         note.fields[field] += '<br><a href="' + url + '" class="obsidian-link">Obsidian</a>';
     }
@@ -52824,9 +52825,6 @@ class FormatConverter {
         return result;
     }
     format(note_text, cloze, highlights_to_cloze) {
-        if (note_text.includes("in typescript?")) {
-            console.log("breakpoint");
-        }
         note_text = this.obsidian_to_anki_math(note_text);
         //Extract the parts that are anki math
         let math_matches;
@@ -53317,7 +53315,7 @@ class FileManager {
             this.ownFiles.push(new AllFile(content, file.path, this.data.add_file_link ? this.getUrl(file) : "", file_data, cache));
         }
     }
-    async initialiseFiles() {
+    async initialiseFiles(option) {
         await this.genAllFiles();
         this.entireFiles = this.ownFiles;
         this.entireobFiles = this.files;
@@ -53327,11 +53325,19 @@ class FileManager {
             const i = parseInt(index);
             let file = this.ownFiles[i];
             file.scanFile();
-            if (!(this.file_hashes.hasOwnProperty(file.path) && file.getHash() === this.file_hashes[file.path])) {
-                //Indicates it's changed or new
-                console.info("Scanning ", file.path, "as it's changed or new.");
+            if (option === "all") {
+                console.log("Scan all the files");
                 files_changed.push(file);
                 obfiles_changed.push(this.files[i]);
+            }
+            else {
+                console.log("Scan only updated files");
+                if (!(this.file_hashes.hasOwnProperty(file.path) && file.getHash() === this.file_hashes[file.path])) {
+                    //Indicates it's changed or new
+                    console.log("Scanning ", file.path, "as it's changed or new.");
+                    files_changed.push(file);
+                    obfiles_changed.push(this.files[i]);
+                }
             }
         }
         this.ownFiles = files_changed;
@@ -53760,6 +53766,7 @@ class MyPlugin extends obsidian.Plugin {
         }
     }
     async scanVault(option) {
+        // option is either "all" or "new"
         let backlinks = new Backlinks();
         backlinks.getBackLinks_hcustom();
         new obsidian.Notice('Scanning vault, check console for details...');
@@ -53774,12 +53781,13 @@ class MyPlugin extends obsidian.Plugin {
         new obsidian.Notice("Successfully connected to Anki! This could take a few minutes - please don't close Anki until the plugin is finished");
         const data = await settingToData(this.app, this.settings, this.fields_dict);
         let manager = new FileManager(this.app, data, this.app.vault.getMarkdownFiles(), this.file_hashes, this.added_media);
-        await manager.initialiseFiles();
+        let request_hee_option = "all";
+        await manager.initialiseFiles(request_hee_option);
         let ret = await manager.requests_hee();
         new obsidian.Notice("Automatic deletion process is done. Now we are scanning the vault again.");
         console.log(ret);
         manager = new FileManager(this.app, data, this.app.vault.getMarkdownFiles(), this.file_hashes, this.added_media);
-        await manager.initialiseFiles();
+        await manager.initialiseFiles(option);
         await manager.requests_1();
         this.added_media = Array.from(manager.added_media_set);
         const hashes = manager.getHashes();
@@ -53816,13 +53824,20 @@ class MyPlugin extends obsidian.Plugin {
         this.file_hashes = await this.loadFileHashes();
         this.addSettingTab(new SettingsTab(this.app, this));
         this.addRibbonIcon('anki', 'Obsidian_to_Anki - Scan Vault', async () => {
-            await this.scanVault();
+            await this.scanVault("new");
+        });
+        this.addCommand({
+            id: 'anki-scan-vault-all',
+            name: 'Scan Vault and Update All Anki Cards',
+            callback: async () => {
+                await this.scanVault("all");
+            }
         });
         this.addCommand({
             id: 'anki-scan-vault',
             name: 'Scan Vault',
             callback: async () => {
-                await this.scanVault();
+                await this.scanVault("new");
             }
         });
         this.addCommand({
