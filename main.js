@@ -53431,8 +53431,9 @@ class FileManager {
         for (let index in this.ownFiles) {
             const i = parseInt(index);
             let file = this.ownFiles[i];
-            if (option !== "all_del")
+            if (option !== "all_del") {
                 existing_ids_in_vault.push(...file.getAnkiCardIDS());
+            }
             file.scanFile();
             if (option.includes("all")) {
                 console.log("Scan all the files");
@@ -53449,8 +53450,9 @@ class FileManager {
                 }
             }
         }
-        if (option !== "all_del")
+        if (option !== "all_del") {
             await this.delete_unused_ankicards(existing_ids_in_vault);
+        }
         this.ownFiles = files_changed;
         this.files = obfiles_changed;
     }
