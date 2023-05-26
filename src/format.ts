@@ -203,6 +203,7 @@ export class FormatConverter {
         // inline code 가 있다면 그 내부 html 코드는 표현형태로 바꾼다
         markdownCode = markdownCode.replace(/(?<!`)`{1}([^`]+?)`{1}(?!`)/g, (match, code) => {
             code = code.replaceAll("\<", "&lt;").replaceAll("\>", "&gt;") // html code 표현을 위함
+            code = code.replaceAll(/\$/g, "&#36;")
             return `<code>${code}</code>`
         });
 
@@ -266,6 +267,9 @@ export class FormatConverter {
     }
 
     format(note_text: string, cloze: boolean, highlights_to_cloze: boolean): string {
+        if (note_text.includes("in typescript?")) {
+            console.log("breakpoint")
+        }
         note_text = this.obsidian_to_anki_math(note_text)
         //Extract the parts that are anki math
         let math_matches: string[]
@@ -273,8 +277,8 @@ export class FormatConverter {
         let display_code_matches: string[]
         const add_highlight_css: boolean = note_text.match(c.OBS_DISPLAY_CODE_REGEXP) ? true : false;
         [note_text, math_matches] = this.censor(note_text, ANKI_MATH_REGEXP, MATH_REPLACE);
-        [note_text, display_code_matches] = this.censor(note_text, c.OBS_DISPLAY_CODE_REGEXP, DISPLAY_CODE_REPLACE);
-        [note_text, inline_code_matches] = this.censor(note_text, c.OBS_CODE_REGEXP, INLINE_CODE_REPLACE);
+        //[note_text, display_code_matches] = this.censor(note_text, c.OBS_DISPLAY_CODE_REGEXP, DISPLAY_CODE_REPLACE);
+        //[note_text, inline_code_matches] = this.censor(note_text, c.OBS_CODE_REGEXP, INLINE_CODE_REPLACE);
         if (cloze) {
             if (highlights_to_cloze) {
                 note_text = note_text.replace(HIGHLIGHT_REGEXP, "{$1}")
@@ -285,8 +289,8 @@ export class FormatConverter {
         note_text = this.formatLinks(note_text)
         //Special for formatting highlights now, but want to avoid any == in code
         note_text = note_text.replace(HIGHLIGHT_REGEXP, String.raw`<mark>$1</mark>`)
-        note_text = this.decensor(note_text, DISPLAY_CODE_REPLACE, display_code_matches, false)
-        note_text = this.decensor(note_text, INLINE_CODE_REPLACE, inline_code_matches, false)
+        //note_text = this.decensor(note_text, DISPLAY_CODE_REPLACE, display_code_matches, false)
+        //note_text = this.decensor(note_text, INLINE_CODE_REPLACE, inline_code_matches, false)
         //note_text = converter.makeHtml(note_text)
         note_text = this.toHtml(note_text)
         note_text = this.decensor(note_text, MATH_REPLACE, math_matches, true).trim()
