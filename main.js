@@ -53345,18 +53345,18 @@ class FileManager {
     }
     async parseNoteInfo_hee(results, ankicardid_to_file) {
         // for loop with key value pair
-        for (let [key, ankicard] of Object.entries(results[0]['result'])) { //[request 번호]['result'][note 번호]['result'][data 번호]['tags']
-            if (ankicard['result'].length == 0) {
+        for (let [key, ankicards_in_a_obsidian_note] of Object.entries(results[0]['result'])) { //[request 번호]['result'][note 번호]['result'][data 번호]['tags']
+            if (ankicards_in_a_obsidian_note['result'].length == 0) {
                 continue;
             }
-            for (let [key, each_anki_card] of Object.entries(ankicard['result'])) {
+            for (let [key, each_anki_card] of Object.entries(ankicards_in_a_obsidian_note['result'])) {
                 let tags = each_anki_card['tags'];
                 // convert arrray to string
                 let tags_string = tags.join(' ');
                 if (tags_string.includes('remove')) {
                     // delete anki card
-                    let ankicardid = ankicard['result'][0]['noteId'];
-                    let front = ankicard['result'][0]['fields']['Front'].value;
+                    let ankicardid = each_anki_card['noteId'];
+                    let front = each_anki_card['fields']['Front'].value;
                     console.log(`anki card with remove tags is found. front: ${front} id: ${ankicardid}`);
                     await this.deleteAnkiCard(ankicardid, front, ankicardid_to_file[ankicardid]);
                 }
@@ -53364,9 +53364,6 @@ class FileManager {
         }
     }
     async deleteAnkiCard(ankicardid, front, fileindex) {
-        if (ankicardid === 1685065714295) {
-            console.log('breakpoint');
-        }
         let contents = this.entireFiles[fileindex].file;
         let INLINE_END_REGEX = new RegExp(String.raw `%%\s.*?ID: ${ankicardid}.*?` + this.data.INLINE_END_STRING + this.data.INLINE_TIME, "gm");
         for (let note_match of contents.matchAll(this.data.INLINE_START_END_TIME)) {
