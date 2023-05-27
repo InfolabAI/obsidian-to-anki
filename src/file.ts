@@ -410,9 +410,6 @@ export class AllFile extends AbstractFile {
 
     getAnkiCardIDS(): number[] {
         let IDS = []
-        if (this.file.includes("AAAI23(정진홍교수님)에서 미래정보예측에")) {
-            console.log("breakpoint")
-        }
         for (let matches of this.file.matchAll(/%%<br>STARTI[\s\S]*?ID: (\d+?) /g)) {
             let id = Number(matches[1])
             IDS.push(id)

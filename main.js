@@ -52823,7 +52823,43 @@ class FormatConverter {
         result = result.replaceAll("<li>- ", "<li>");
         result = result.replaceAll(/\*\*(.*?)\*\*/g, "<b>$1</b>");
         result = result.replaceAll(/\[([^\[\]]+?)\]\(([^()]+?)\)/g, `<a href="$2">$1</a>`); // 한 줄에 [] 가 여러 개인 경우, 함께 match 되기 때문에 [] 내부에 []가 없도록 함
+        //TTS
+        //if (result.match(/[ㄱ-ㅎ|ㅏ-ㅣ|가-힣|\[|\]|]/g) === null) {
+        //    result = this.html_TTS(result)
+        //}
+        let replace_token_list = [];
+        for (let match of result.matchAll(/[a-zA-Z0-9\.\?,\s]+/g)) {
+            if (match[0].length > 30) {
+                let [ret, not_included_tokens] = this.isNotArraySubset(match[0].split(" "), replace_token_list);
+                if (ret) {
+                    result = result.replace(match[0], this.html_TTS(match[0]));
+                    replace_token_list = [...replace_token_list, ...not_included_tokens];
+                }
+            }
+        }
         return result;
+    }
+    isNotArraySubset(array1, array2) {
+        // array1 의 60% 이상이 이전에 TTS 한 token(array2) 이면 false
+        const threshold = array1.length * 0.5;
+        let count = 0;
+        let not_included_tokens = [];
+        let ret_bool = true;
+        for (const item of array1) {
+            if (array2.includes(item)) {
+                count++;
+                if (count >= threshold) {
+                    ret_bool = false;
+                }
+            }
+            else {
+                not_included_tokens.push(item);
+            }
+        }
+        return [ret_bool, not_included_tokens];
+    }
+    html_TTS(str) {
+        return `<tts service="android" voice="en_US"><u> ${str} </u></tts>`;
     }
     format(note_text, cloze, highlights_to_cloze) {
         note_text = this.obsidian_to_anki_math(note_text);
@@ -52845,9 +52881,9 @@ class FormatConverter {
         note_text = note_text.replace(HIGHLIGHT_REGEXP, String.raw `<mark>$1</mark>`);
         //note_text = this.decensor(note_text, DISPLAY_CODE_REPLACE, display_code_matches, false)
         //note_text = this.decensor(note_text, INLINE_CODE_REPLACE, inline_code_matches, false)
+        note_text = this.decensor(note_text, MATH_REPLACE, math_matches, true).trim();
         //note_text = converter.makeHtml(note_text)
         note_text = this.toHtml(note_text);
-        note_text = this.decensor(note_text, MATH_REPLACE, math_matches, true).trim();
         // Remove unnecessary paragraph tag
         if (note_text.startsWith(PARA_OPEN) && note_text.endsWith(PARA_CLOSE)) {
             note_text = note_text.slice(PARA_OPEN.length, -1 * PARA_CLOSE.length);
@@ -53185,9 +53221,6 @@ class AllFile extends AbstractFile {
     }
     getAnkiCardIDS() {
         let IDS = [];
-        if (this.file.includes("AAAI23(정진홍교수님)에서 미래정보예측에")) {
-            console.log("breakpoint");
-        }
         for (let matches of this.file.matchAll(/%%<br>STARTI[\s\S]*?ID: (\d+?) /g)) {
             let id = Number(matches[1]);
             IDS.push(id);
