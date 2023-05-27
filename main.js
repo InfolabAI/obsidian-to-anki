@@ -53243,15 +53243,19 @@ class AllFile extends AbstractFile {
         str = str.replaceAll(/%%[\s\S]*?%%/g, ""); // annotation 제거
         str = str.replaceAll(/<!--[\s\S]*?-->/g, ""); // annotation 제거
         str = str.replaceAll(/^---\n[\s\S]*?\n---\n/g, ""); // frontmatter 제거
-        str = str.replaceAll(/\!\[\[/gm, "[["); // frontmatter 제거
+        str = str.replaceAll(/\!\[\[/gm, "[["); // embeddnig 제거
+        str = str.replaceAll(/<.*?>(.*?)<.*?>/gm, "$1"); // html 제거
+        str = str.replaceAll(/\*\*(.*?)\*\*/gm, "$1"); // bold 제거
         let ret = "";
         for (let line of str.split("\n")) {
             const m = /^(\s*)(.*)$/gm.exec(line);
             let [, indent, content] = m; //<ul> 을 통해 이미 특정 indent 에 속한 코드이기 때문에 첫줄에 해당하는 indent 는 없앤다
-            //content = content.replace(/^(#+?.*?)/gm, "- **$1**") // header 를 bold 로 바꾼다
-            content = content.replace(/^(#+?.*?)/gm, "</ul></ul></ul></ul></ul><br><br>$1"); // header 를 bold 로 바꾼다
+            if (indent.length === 0) {
+                content = content.replace(/^(#+ )([\w\s]+)/gm, `</ul></ul></ul></ul></ul><br><br>$1<font size="5" color='fuchsia'><strong><em> $2 </em></strong></font>`); // header 를 bold 로 바꾼다
+                content = content.replace(/^(- )([\w\s]+)/gm, `</ul></ul></ul></ul></ul><br><br>$1<font size="4" color='green'><em> $2 </em></font>`); // header 를 bold 로 바꾼다
+            }
             if (indent.length >= 2) {
-                ret += `${indent}.-`;
+                ret += `${indent}.=`;
             }
             else {
                 ret += `\n${indent}${content}`;
