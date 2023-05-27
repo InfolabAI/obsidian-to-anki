@@ -52828,7 +52828,15 @@ class FormatConverter {
         //    result = this.html_TTS(result)
         //}
         let replace_token_list = [];
-        for (let match of result.matchAll(/[a-zA-Z0-9\.\?,\s]+/g)) {
+        let tmp_ret = result.replaceAll(/<a.*?<\/a>/g, ""); //embed, url 제외
+        tmp_ret = tmp_ret.replaceAll(/<img.*?>/g, ""); //image 제외
+        tmp_ret = tmp_ret.replaceAll(/\[\[.*?\]\]/g, ""); //혹시 모를 embedding제외
+        tmp_ret = tmp_ret.replaceAll(/<code[\s\S]*?<\/code>/g, "");
+        tmp_ret = tmp_ret.replaceAll(/<\math[\s\S]*?<\/math/g, ""); //math 제외
+        for (let match of tmp_ret.matchAll(/[a-zA-Z0-9\.\?,-\s]+/g)) {
+            if (match[0].includes("png")) {
+                console.log("breakpoint");
+            }
             if (match[0].length > 30) {
                 let [ret, not_included_tokens] = this.isNotArraySubset(match[0].split(" "), replace_token_list);
                 if (ret) {
@@ -53257,7 +53265,14 @@ class AllFile extends AbstractFile {
         //let tfile = app.vault.getAbstractFileByPath(this.path) as TFile
         //console.log(this.file)
         let text = this.file;
-        if (/Welcome to My|Templete\/|0. Inbox|\(T\)|\(Cleaning\)|\(Meeting\)/g.exec(this.path) !== null) {
+        let file_name = this.path.split("/").pop();
+        let folder_path = this.path.split("/").slice(0, -1).join("/");
+        let file_condition = /\(T\)|\(Cleaning\)|\(Meeting\)/g.exec(file_name) !== null;
+        let folder_condition = /Templ|0. Inbox|Welcome|hee_publish|Daily|Gantt|Attachment|supplement|References/gi.exec(folder_path) !== null;
+        if (file_condition || folder_condition) {
+            this.file = this.file.replaceAll(/^---\n---\n/g, "");
+            this.file = this.file.replaceAll(/^---\nanki_id: \d*?\n---\n/g, "");
+            this.file = this.file.replaceAll(/^anki_id: \n/gm, "");
             return;
         }
         text = this.preprocess_file_contents(text);

@@ -272,7 +272,15 @@ export class FormatConverter {
         //    result = this.html_TTS(result)
         //}
         let replace_token_list = []
-        for (let match of result.matchAll(/[a-zA-Z0-9\.\?,\s]+/g)) {
+        let tmp_ret = result.replaceAll(/<a.*?<\/a>/g, "") //embed, url 제외
+        tmp_ret = tmp_ret.replaceAll(/<img.*?>/g, "")//image 제외
+        tmp_ret = tmp_ret.replaceAll(/\[\[.*?\]\]/g, "")//혹시 모를 embedding제외
+        tmp_ret = tmp_ret.replaceAll(/<code[\s\S]*?<\/code>/g, "")
+        tmp_ret = tmp_ret.replaceAll(/<\math[\s\S]*?<\/math/g, "") //math 제외
+        for (let match of tmp_ret.matchAll(/[a-zA-Z0-9\.\?,-\s]+/g)) {
+            if (match[0].includes("png")) {
+                console.log("breakpoint")
+            }
             if (match[0].length > 30) {
                 let [ret, not_included_tokens] = this.isNotArraySubset(match[0].split(" "), replace_token_list)
                 if (ret) {
