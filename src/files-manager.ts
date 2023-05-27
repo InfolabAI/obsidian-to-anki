@@ -154,9 +154,9 @@ export class FileManager {
         for (let index in this.ownFiles) {
             const i = parseInt(index)
             let file = this.ownFiles[i]
-            existing_ids_in_vault.push(...file.getAnkiCardIDS())
+            file.scanFile() // scan 을 get ankicardids 보다 먼저 해야함. 그래야 scnafile 에서 anki card id 를 변경하거나 삭제했을 때 get ankicard 에 적용됨
 
-            file.scanFile()
+            existing_ids_in_vault.push(...file.getAnkiCardIDS())
             if (option.includes("all")) {
                 console.log("Scan all the files")
                 files_changed.push(file)

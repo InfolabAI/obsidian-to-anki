@@ -448,15 +448,18 @@ export class AllFile extends AbstractFile {
         //let tfile = app.vault.getAbstractFileByPath(this.path) as TFile
         //console.log(this.file)
         let text = this.file
+        if (this.path.includes("Reference")) {
+            console.log("Reference")
+        }
         let file_name = this.path.split("/").pop()
         let folder_path = this.path.split("/").slice(0, -1).join("/")
         let file_condition = /\(T\)|\(Cleaning\)|\(Meeting\)/g.exec(file_name) !== null
-        let folder_condition = /Templ|0. Inbox|Welcome|hee_publish|Daily|Gantt|Attachment|supplement|References/gi.exec(folder_path) !== null
+        let folder_condition = /Templ|0. Inbox|Welcome|hee-publish|Daily|Gantt|Attachment|supplement|References/gi.exec(folder_path) !== null
 
         if (file_condition || folder_condition) {
             this.file = this.file.replaceAll(/^---\n---\n/g, "")
             this.file = this.file.replaceAll(/^---\nanki_id: \d*?\n---\n/g, "")
-            this.file = this.file.replaceAll(/^anki_id: \n/gm, "")
+            this.file = this.file.replaceAll(/^anki_id: \d*?\n/gm, "")
             return
         }
         text = this.preprocess_file_contents(text)

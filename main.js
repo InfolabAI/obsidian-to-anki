@@ -53265,14 +53265,17 @@ class AllFile extends AbstractFile {
         //let tfile = app.vault.getAbstractFileByPath(this.path) as TFile
         //console.log(this.file)
         let text = this.file;
+        if (this.path.includes("Reference")) {
+            console.log("Reference");
+        }
         let file_name = this.path.split("/").pop();
         let folder_path = this.path.split("/").slice(0, -1).join("/");
         let file_condition = /\(T\)|\(Cleaning\)|\(Meeting\)/g.exec(file_name) !== null;
-        let folder_condition = /Templ|0. Inbox|Welcome|hee_publish|Daily|Gantt|Attachment|supplement|References/gi.exec(folder_path) !== null;
+        let folder_condition = /Templ|0. Inbox|Welcome|hee-publish|Daily|Gantt|Attachment|supplement|References/gi.exec(folder_path) !== null;
         if (file_condition || folder_condition) {
             this.file = this.file.replaceAll(/^---\n---\n/g, "");
             this.file = this.file.replaceAll(/^---\nanki_id: \d*?\n---\n/g, "");
-            this.file = this.file.replaceAll(/^anki_id: \n/gm, "");
+            this.file = this.file.replaceAll(/^anki_id: \d*?\n/gm, "");
             return;
         }
         text = this.preprocess_file_contents(text);
@@ -53479,8 +53482,8 @@ class FileManager {
         for (let index in this.ownFiles) {
             const i = parseInt(index);
             let file = this.ownFiles[i];
+            file.scanFile(); // scan 을 get ankicardids 보다 먼저 해야함. 그래야 scnafile 에서 anki card id 를 변경하거나 삭제했을 때 get ankicard 에 적용됨
             existing_ids_in_vault.push(...file.getAnkiCardIDS());
-            file.scanFile();
             if (option.includes("all")) {
                 console.log("Scan all the files");
                 files_changed.push(file);
