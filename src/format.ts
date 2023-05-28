@@ -277,7 +277,7 @@ export class FormatConverter {
         tmp_ret = tmp_ret.replaceAll(/\[\[.*?\]\]/g, "")//혹시 모를 embedding제외
         tmp_ret = tmp_ret.replaceAll(/<code[\s\S]*?<\/code>/g, "")
         tmp_ret = tmp_ret.replaceAll(/<\math[\s\S]*?<\/math/g, "") //math 제외
-        for (let match of tmp_ret.matchAll(/[a-zA-Z0-9\.\?,-\s]+/g)) {
+        for (let match of tmp_ret.matchAll(/[a-zA-Z0-9\.\?,\-\s]+/g)) {
             if (match[0].includes("png")) {
                 console.log("breakpoint")
             }

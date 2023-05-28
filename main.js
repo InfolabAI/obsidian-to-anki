@@ -52833,7 +52833,7 @@ class FormatConverter {
         tmp_ret = tmp_ret.replaceAll(/\[\[.*?\]\]/g, ""); //혹시 모를 embedding제외
         tmp_ret = tmp_ret.replaceAll(/<code[\s\S]*?<\/code>/g, "");
         tmp_ret = tmp_ret.replaceAll(/<\math[\s\S]*?<\/math/g, ""); //math 제외
-        for (let match of tmp_ret.matchAll(/[a-zA-Z0-9\.\?,-\s]+/g)) {
+        for (let match of tmp_ret.matchAll(/[a-zA-Z0-9\.\?,\-\s]+/g)) {
             if (match[0].includes("png")) {
                 console.log("breakpoint");
             }
@@ -53251,8 +53251,10 @@ class AllFile extends AbstractFile {
             const m = /^(\s*)(.*)$/gm.exec(line);
             let [, indent, content] = m; //<ul> 을 통해 이미 특정 indent 에 속한 코드이기 때문에 첫줄에 해당하는 indent 는 없앤다
             if (indent.length === 0) {
-                content = content.replace(/^(##+ )([ㄱ-ㅎㅏ-ㅣ가-힣\w\s]+)/gm, `</ul></ul></ul></ul></ul><br><br>$1<font size="5" color='fuchsia'><strong><em> $2 </em></strong></font>`); // header 를 bold 로 바꾼다
-                content = content.replace(/^(- )([ㄱ-ㅎㅏ-ㅣ가-힣\w\s]+)/gm, `</ul></ul></ul></ul></ul><br><br>$1<font size="4" color='green'><em> $2 </em></font>`); // header 를 bold 로 바꾼다
+                content = content.replace(/^(# )([^\n]+)/gm, `$1.=`); // header 1 를 제거
+                content = content.replaceAll(/(#)([\w\-_\/]+)/gm, `$1.=`); // tag 를 제거
+                content = content.replace(/^(##+ )([ㄱ-ㅎㅏ-ㅣ가-힣\-\w\s]+)/gm, `</ul></ul></ul></ul></ul><br><br>$1<font size="5" color='fuchsia'><strong><em> $2 </em></strong></font>`); // header 를 bold 로 바꾼다
+                content = content.replace(/^(- )([ㄱ-ㅎㅏ-ㅣ가-힣\-\w\s]+)/gm, `</ul></ul></ul></ul></ul><br><br>$1<font size="4" color='green'><em> $2 </em></font>`); // header 를 bold 로 바꾼다
             }
             if (indent.length >= 2) {
                 ret += `${indent}.=`;
