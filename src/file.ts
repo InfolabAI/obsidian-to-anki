@@ -146,7 +146,7 @@ abstract class AbstractFile {
         return Md5.hashStr(this.file) as string
     }
 
-    abstract scanFile(): void
+    abstract scanFile(option: string): void
 
     scanDeletions() {
         for (let match of this.file.matchAll(this.data.EMPTY_REGEXP)) {
@@ -426,9 +426,11 @@ export class AllFile extends AbstractFile {
         }
     }
 
-    scanFile() {
+    scanFile(option: string) {
         this.setupScan()
-        this.tree_to_ankicard.buildObsidianNoteToAnkiCard()
+        if (option !== "all_del") {
+            this.tree_to_ankicard.buildObsidianNoteToAnkiCard()
+        }
         this.scanNotes()
         this.scanInlineNotes()
         for (let note_type in this.custom_regexps) {

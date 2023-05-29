@@ -52987,15 +52987,24 @@ class TreeDictToAnkiCards {
         let file_name = this.allFile.path.split("/").pop();
         let folder_path = this.allFile.path.split("/").slice(0, -1).join("/");
         let file_condition = /L0\.|L1\.|L3\.|\(T\)|\(Cleaning\)|\(Meeting\)/g.exec(file_name) !== null;
-        let folder_condition = /L0\.|L1\.|L3\.|Templ|0. Inbox|Welcome|hee-publish|Daily|Gantt|Attachment|supplement|References/gi.exec(folder_path) !== null;
+        let folder_condition = /3. Private|L0\.|L1\.|L3\.|Templ|0. Inbox|Welcome|hee-publish|Daily|Gantt|Attachment|supplement|References/gi.exec(folder_path) !== null;
         if (file_condition || folder_condition) {
             this.allFile.file = this.allFile.file.replaceAll(/^---\n---\n/g, "");
             this.allFile.file = this.allFile.file.replaceAll(/^---\nanki_id: \d*?\n---\n/g, "");
             this.allFile.file = this.allFile.file.replaceAll(/^anki_id: \d*?\n/gm, "");
             return;
         }
-        let tree = this.obToTreeAndDict.buildTreeFromIndentContent(this.allFile.file);
+        let tree = null;
+        try {
+            tree = this.obToTreeAndDict.buildTreeFromIndentContent(this.allFile.file, this.allFile.path);
+        }
+        catch {
+            return;
+        }
         let [treeDict, treeDict_position] = this.obToTreeAndDict.dfsQueue(tree);
+        if (Object.keys(treeDict).length === 0) {
+            console.log(`Ankicard 화 되지 않는 노트가 있습니다. ${this.allFile.path}`);
+        }
         // for loop with key and value of dict
         for (let [anki_front, anki_back_array] of Object.entries(treeDict)) {
             let position_ = treeDict_position[anki_front];
@@ -53059,7 +53068,7 @@ class ObnoteToTreeAndDict {
         }
         return position;
     }
-    buildTreeFromIndentContent(contentStr) {
+    buildTreeFromIndentContent(contentStr, file_path) {
         // 다음 행이 - # 로 시작하지 않으면 \n 을 없애서 한줄처럼 처리되게 한다. 나중에 ☰ 을 다시 \n 으로 바꿔야 함
         // 이렇게 되면, frontmatter 가 header 위에 있는 경우, 두 줄로 처리되어 frontmatter 가 무시되게 된다. 왜냐하면 line.trim().startsWith("- ") 에서 currentValue 를 += 가 아니라 = 로 대체하기 때문이다. 하지만, frontmatter 는 어차피 의미있는 정보가 아니므로 무시해도 된다.
         contentStr = contentStr.replaceAll(/\n([\t]*)(?![\t]*- |[\t]*#)/g, "☰$1");
@@ -53101,7 +53110,14 @@ class ObnoteToTreeAndDict {
                     position: line_position + offset, // \n 에 해당하는 대채문자 ☰ 제거
                 };
                 const parent = stack[indentLevel.length - 1];
-                parent.children.push(node);
+                try {
+                    parent.children.push(node);
+                }
+                catch {
+                    new obsidian.Notice("인덴트가 맞지 않는 노트가 있습니다. 블록과 헤더만으로 이루어진 노트만 Anki 화합니다. 일단 다음 파일로 넘어갑니다. 로그 확인", 10000);
+                    console.log(`인덴트가 맞지 않는 노트가 있습니다. path: ${file_path} \n${line} `);
+                    throw new Error(``);
+                }
             }
             stack[indentLevel.length] = node;
             stack.length = indentLevel.length + 1;
@@ -53552,9 +53568,11 @@ class AllFile extends AbstractFile {
             }
         }
     }
-    scanFile() {
+    scanFile(option) {
         this.setupScan();
-        this.tree_to_ankicard.buildObsidianNoteToAnkiCard();
+        if (option !== "all_del") {
+            this.tree_to_ankicard.buildObsidianNoteToAnkiCard();
+        }
         this.scanNotes();
         this.scanInlineNotes();
         for (let note_type in this.custom_regexps) {
@@ -53698,7 +53716,7 @@ class FileManager {
         for (let index in this.ownFiles) {
             const i = parseInt(index);
             let file = this.ownFiles[i];
-            file.scanFile(); // scan 을 get ankicardids 보다 먼저 해야함. 그래야 scnafile 에서 anki card id 를 변경하거나 삭제했을 때 get ankicard 에 적용됨
+            file.scanFile(option); // scan 을 get ankicardids 보다 먼저 해야함. 그래야 scnafile 에서 anki card id 를 변경하거나 삭제했을 때 get ankicard 에 적용됨
             existing_ids_in_vault.push(...file.tree_to_ankicard.getAnkiCardIDS());
             if (option.includes("all")) {
                 console.log("Scan all the files");
