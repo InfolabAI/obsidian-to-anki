@@ -59,7 +59,7 @@ export class TreeDictToAnkiCards {
 
 	postprocess_file_contents(str: string): string {
 		// 미리 바꾸면 ID 넣을 position 이 어긋나기 때문에 postprocess
-		str = str.replaceAll(/\!\[\[/gm, "[[") // embedding 제거
+		//str = str.replaceAll(/\!\[\[/gm, "[[") // embedding 제거
 		str = str.replaceAll(/^---\n[\s\S]*?\n---\n/g, "") // frontmatter 제거
 		str = str.replaceAll(/(#)([\w\-_\/]+[\n\s])/gm, ``) // tag 를 제거
 		str = str.replace(/^(# )([^\n]+)\n/gm, ``) // header 1 를 제거
@@ -73,7 +73,7 @@ export class TreeDictToAnkiCards {
 		// exclude certain files
 		let file_name = this.allFile.path.split("/").pop()
 		let folder_path = this.allFile.path.split("/").slice(0, -1).join("/")
-		let file_condition = /L0\.|L1\.|L3\.|\(T\)|\(Cleaning\)|\(Meeting\)/g.exec(file_name) !== null
+		let file_condition = /\(Test\)|L0\.|L1\.|L3\.|\(T\)|\(Cleaning\)|\(Meeting\)/g.exec(file_name) !== null
 		let folder_condition = /3. Private|L0\.|L1\.|L3\.|Templ|0. Inbox|Welcome|hee-publish|Daily|Gantt|Attachment|supplement|References/gi.exec(folder_path) !== null
 
 		if (file_condition || folder_condition) {
@@ -180,7 +180,8 @@ export class ObnoteToTreeAndDict {
 	buildTreeFromIndentContent(contentStr: string, file_path: string): TreeNode {
 		// 다음 행이 - # 로 시작하지 않으면 \n 을 없애서 한줄처럼 처리되게 한다. 나중에 ☰ 을 다시 \n 으로 바꿔야 함
 		// 이렇게 되면, frontmatter 가 header 위에 있는 경우, 두 줄로 처리되어 frontmatter 가 무시되게 된다. 왜냐하면 line.trim().startsWith("- ") 에서 currentValue 를 += 가 아니라 = 로 대체하기 때문이다. 하지만, frontmatter 는 어차피 의미있는 정보가 아니므로 무시해도 된다.
-		contentStr = contentStr.replaceAll(/\n([\t]*)(?![\t]*- |[\t]*#)/g, "☰$1")
+		contentStr = contentStr.replaceAll(/\n([\t]*)(?![\t]*- )/g, "☰$1")
+		contentStr = contentStr.replaceAll(/☰#/g, "\n#")
 		let content = contentStr.split("\n")
 		const stack: TreeNode[] = [];
 		const rootNodes: TreeNode[] = [];
@@ -189,9 +190,6 @@ export class ObnoteToTreeAndDict {
 		let offset = 0
 
 		for (const line of content) {
-			if (line.includes("매우 느린데")) {
-				console.log("")
-			}
 			// - 가 아니면 다음에 올 - 에 한줄로 포함되도록 한다.
 			if (!line.trim().startsWith("- ")) {
 				currentValue = line + "☰"

@@ -463,7 +463,7 @@ export class AllFile extends AbstractFile {
                 const identifier: number | null = this.note_ids[index + this.notes_to_add.length] //Since regular then inline
                 if (identifier) {
                     let idstr = ""
-                    if (id_position < 0) {
+                    if (id_position <= 0) {
                         idstr = ` %% OND: ${identifier} %% `
                         id_position *= -1
                     }
@@ -485,6 +485,7 @@ export class AllFile extends AbstractFile {
         )
         this.file = string_insert(this.file, normal_inserts.concat(inline_inserts).concat(regex_inserts))
         this.file = this.file.replace(/--- (%% OND: \d+ %%)/g, "---\n$1")
+        this.file = this.file.replace(/^ (%% OND: \d+ %% )/g, "$1\n")
         this.fix_newline_ids()
     }
 }

@@ -125,7 +125,7 @@ export class FormatConverter {
                 } else if (IMAGE_EXTS.includes(extname(embed.link))) {
                     note_text = note_text.replace(
                         new RegExp(c.escapeRegex(embed.original), "g"),
-                        '<img src="' + basename(embed.link) + '" alt="' + embed.displayText + '">'
+                        '<img src="' + basename(embed.link) + '" width="' + embed.displayText + '">'
                     )
                 } else {
                     console.warn("Unsupported extension: ", extname(embed.link))
@@ -142,6 +142,13 @@ export class FormatConverter {
         //note_text = note_text.replaceAll(/\[\[(.*?)|.*?\]\]/g, "[[$1]]") //
         for (let link of this.file_cache.links) {
             note_text = note_text.replace(new RegExp(c.escapeRegex(link.original), "g"), '<a href="' + this.getUrlFromLink(link.link) + '">' + link.displayText + "</a>")
+        }
+        for (let embed of this.file_cache.embeds) {
+            let matches = /!\[\[(.*?)\]\](?<!png\]\]|jpg\]\]|png\|\d+\]\]|jpg\|\d+\]\])/gm.exec(note_text) // image 가 아닌 embedding 찾기 (e.g., ![[.png]], ![[.jpg]], ![[.png|500]], ![[.jpg|500]] 를 제외하고 찾기
+            if (matches === null) {
+                continue
+            }
+            note_text = note_text.replace(new RegExp(c.escapeRegex(embed.original), "g"), '<a href="' + this.getUrlFromLink(embed.link) + '">' + embed.displayText + "</a>")
         }
         return note_text
     }
@@ -216,14 +223,18 @@ export class FormatConverter {
 
     preprocessing(str: string): string {
         str = this.remove_common_indent(str)
-        str = str.replaceAll(/(\^[\w\d]{6})(?!\|)/g, "") // [[L3. (Root) GANs#^a18e8e|(참고)]] 와 같은 block reference 는 그대로 두고, ^3a3214 처럼 그냥 지저분한 주소만 제거하기 위한 정규식
+        str = str.replaceAll(/(\^[\w\d]{6})(?!\||\])/g, "") // [[L3. (Root) GANs#^a18e8e|(참고)]], [[L3. (Root) GANs#^a18e8e]]  와 같은 block reference 는 그대로 두고, ^3a3214 처럼 그냥 지저분한 주소만 제거하기 위한 정규식
         str = str.replaceAll(/%% OND: \d+ %%/g, "") // annotation OND 제거 (%%가 짝이 안 맞는 경우가 있기 때문에, %% 사이 %% 를 지우려 하면 안됨)
         str = str.replaceAll(/%% ID: \d+ ENDI %%/g, "") // annotation ID 제거 (%%가 짝이 안 맞는 경우가 있기 때문에, %% 사이 %% 를 지우려 하면 안됨)
         str = str.replaceAll(/(%%|)<br>STARTI[\s\S]*?Back:[\s\S]*?%%/g, "") // annotation ID 제거 (%%가 짝이 안 맞는 경우가 있기 때문에, %% 사이 %% 를 지우려 하면 안됨)
         str = str.replaceAll(/%%\d\d\d\d-\d\d-\d\d%%/g, "") // annotation date 제거 (%%가 짝이 안 맞는 경우가 있기 때문에, %% 사이 %% 를 지우려 하면 안됨)
         str = str.replaceAll(/%%/g, "") // annotation 자체 제거
         str = str.replaceAll(/<!--[\s\S]*?-->/g, "") // annotation 제거
-        str = str.replaceAll(/(#)([\w\-_\/]+[\n\s])/gm, ``) // tag 를 제거
+        str = str.replaceAll(/(#)([\w가-힣\-_\/]+[\n\s])/gm, ``) // tag 를 제거
+        str = str.replaceAll(/>\s*!\[\[/gm, "![[") // quote embedding 제거
+        // 크기 조절이 있는 png, jpg 를 HTML 로 잘 변경하도록 개선 [[예.png|500]]
+        // alias 가 있는 link 는 HTML 로 잘 변경도록 개선 [[예|예1]]
+        // image 가 아닌 embedding HTML 로 잘 변경도록 개선 (e.g., ![[.png]], ![[.jpg]], ![[.png|500]], ![[.jpg|500]] 를 제외하고 모두 a href link 로 잘 변경함)
         return str
     }
 
