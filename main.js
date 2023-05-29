@@ -52768,9 +52768,11 @@ class FormatConverter {
         str = str.replaceAll(/(\^[\w\d]{6})(?!\|)/g, ""); // [[L3. (Root) GANs#^a18e8e|(참고)]] 와 같은 block reference 는 그대로 두고, ^3a3214 처럼 그냥 지저분한 주소만 제거하기 위한 정규식
         str = str.replaceAll(/%% OND: \d+ %%/g, ""); // annotation OND 제거 (%%가 짝이 안 맞는 경우가 있기 때문에, %% 사이 %% 를 지우려 하면 안됨)
         str = str.replaceAll(/%% ID: \d+ ENDI %%/g, ""); // annotation ID 제거 (%%가 짝이 안 맞는 경우가 있기 때문에, %% 사이 %% 를 지우려 하면 안됨)
+        str = str.replaceAll(/(%%|)<br>STARTI[\s\S]*?Back:[\s\S]*?%%/g, ""); // annotation ID 제거 (%%가 짝이 안 맞는 경우가 있기 때문에, %% 사이 %% 를 지우려 하면 안됨)
         str = str.replaceAll(/%%\d\d\d\d-\d\d-\d\d%%/g, ""); // annotation date 제거 (%%가 짝이 안 맞는 경우가 있기 때문에, %% 사이 %% 를 지우려 하면 안됨)
         str = str.replaceAll(/%%/g, ""); // annotation 자체 제거
         str = str.replaceAll(/<!--[\s\S]*?-->/g, ""); // annotation 제거
+        str = str.replaceAll(/(#)([\w\-_\/]+[\n\s])/gm, ``); // tag 를 제거
         return str;
     }
     toHtml(str) {
@@ -52976,7 +52978,7 @@ class TreeDictToAnkiCards {
         // 미리 바꾸면 ID 넣을 position 이 어긋나기 때문에 postprocess
         str = str.replaceAll(/\!\[\[/gm, "[["); // embedding 제거
         str = str.replaceAll(/^---\n[\s\S]*?\n---\n/g, ""); // frontmatter 제거
-        str = str.replaceAll(/(#)([\w\-_\/]+\n)/gm, ``); // tag 를 제거
+        str = str.replaceAll(/(#)([\w\-_\/]+[\n\s])/gm, ``); // tag 를 제거
         str = str.replace(/^(# )([^\n]+)\n/gm, ``); // header 1 를 제거
         return str;
     }
@@ -53123,7 +53125,19 @@ class ObnoteToTreeAndDict {
             stack.length = indentLevel.length + 1;
             line_position += line.length + 1;
         }
-        return { value: "- ROOT", children: rootNodes, position: 0 };
+        // get root id position
+        let root_position = 0;
+        let front_matter_match = /^---☰[\s\S]*?☰---/g.exec(contentStr);
+        if (front_matter_match !== null) {
+            root_position = front_matter_match[0].length;
+        }
+        // add root id to value if it eixsts
+        let root_id = "";
+        let root_Id_match = /^(%% OND: \d+ %%)/g.exec(contentStr.replace(/^---☰[\s\S]*?☰---☰/g, ""));
+        if (root_Id_match !== null) {
+            root_id = root_Id_match[0];
+        }
+        return { value: "- ROOT " + root_id, children: rootNodes, position: root_position };
     }
     dfsQueue(root) {
         const queue = [root];
@@ -53131,6 +53145,14 @@ class ObnoteToTreeAndDict {
         const result_QA = {};
         const result_QA_position = {}; // ID 를 넣을 곳
         let context = [];
+        // root anki card 생성
+        let root_value = [];
+        let root_key = root.value;
+        for (let child of root.children) {
+            root_value = [...root_value, child.value + "☰"];
+        }
+        result_QA[root_key] = root_value;
+        result_QA_position[root_key] = root.position;
         while (queue.length > 0) {
             const currentNode = queue.pop();
             let indent = this.getIndent(currentNode.value);
@@ -53618,6 +53640,7 @@ class AllFile extends AbstractFile {
             }
         });
         this.file = string_insert(this.file, normal_inserts.concat(inline_inserts).concat(regex_inserts));
+        this.file = this.file.replace(/--- (%% OND: \d+ %%)/g, "---\n$1");
         this.fix_newline_ids();
     }
 }

@@ -219,9 +219,11 @@ export class FormatConverter {
         str = str.replaceAll(/(\^[\w\d]{6})(?!\|)/g, "") // [[L3. (Root) GANs#^a18e8e|(참고)]] 와 같은 block reference 는 그대로 두고, ^3a3214 처럼 그냥 지저분한 주소만 제거하기 위한 정규식
         str = str.replaceAll(/%% OND: \d+ %%/g, "") // annotation OND 제거 (%%가 짝이 안 맞는 경우가 있기 때문에, %% 사이 %% 를 지우려 하면 안됨)
         str = str.replaceAll(/%% ID: \d+ ENDI %%/g, "") // annotation ID 제거 (%%가 짝이 안 맞는 경우가 있기 때문에, %% 사이 %% 를 지우려 하면 안됨)
+        str = str.replaceAll(/(%%|)<br>STARTI[\s\S]*?Back:[\s\S]*?%%/g, "") // annotation ID 제거 (%%가 짝이 안 맞는 경우가 있기 때문에, %% 사이 %% 를 지우려 하면 안됨)
         str = str.replaceAll(/%%\d\d\d\d-\d\d-\d\d%%/g, "") // annotation date 제거 (%%가 짝이 안 맞는 경우가 있기 때문에, %% 사이 %% 를 지우려 하면 안됨)
         str = str.replaceAll(/%%/g, "") // annotation 자체 제거
         str = str.replaceAll(/<!--[\s\S]*?-->/g, "") // annotation 제거
+        str = str.replaceAll(/(#)([\w\-_\/]+[\n\s])/gm, ``) // tag 를 제거
         return str
     }
 

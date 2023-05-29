@@ -484,6 +484,7 @@ export class AllFile extends AbstractFile {
             }
         )
         this.file = string_insert(this.file, normal_inserts.concat(inline_inserts).concat(regex_inserts))
+        this.file = this.file.replace(/--- (%% OND: \d+ %%)/g, "---\n$1")
         this.fix_newline_ids()
     }
 }
