@@ -53085,7 +53085,7 @@ class ObnoteToTreeAndDict {
         // 다음 행이 - # 로 시작하지 않으면 \n 을 없애서 한줄처럼 처리되게 한다. 나중에 ☰ 을 다시 \n 으로 바꿔야 함
         // 이렇게 되면, frontmatter 가 header 위에 있는 경우, 두 줄로 처리되어 frontmatter 가 무시되게 된다. 왜냐하면 line.trim().startsWith("- ") 에서 currentValue 를 += 가 아니라 = 로 대체하기 때문이다. 하지만, frontmatter 는 어차피 의미있는 정보가 아니므로 무시해도 된다.
         contentStr = contentStr.replaceAll(/\n([\t]*)(?![\t]*- )/g, "☰$1");
-        contentStr = contentStr.replaceAll(/☰#/g, "\n#");
+        contentStr = contentStr.replaceAll(/☰#/g, "\n#"); // 헤더는 어차피 자연스럽게 한줄로 처리되므로, 여기서는 다시 \n 을 붙여줌. 중요한건 - 의 뒷부분을 ☰ 로 변경하는 것이다. ☰ 라는 하나의 문자로 \n 와 동일한 길이로 정한 이유는 position 계산을 정확히 하기 위해서이다.
         let content = contentStr.split("\n");
         const stack = [];
         const rootNodes = [];
