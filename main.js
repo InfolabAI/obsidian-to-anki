@@ -613,7 +613,7 @@ class AbstractNote {
     longest_path;
     constructor(note_text, fields_dict, curly_cloze, highlights_to_cloze, formatter) {
         app.metadataCache.resolvedLinks;
-        this.text = note_text.trim();
+        this.text = note_text;
         this.current_field_num = 0;
         this.delete = false;
         this.no_note_type = false;
@@ -760,20 +760,6 @@ class ExtendedInlineNote extends AbstractNote {
         }
         return [line, this.current_field];
     }
-    removeCommonIndent(text) {
-        const lines = text.split('\n').filter(line => line.trim() !== '');
-        if (lines.length === 0) {
-            return '';
-        }
-        const firstLineIndent = lines[0].search(/\S/);
-        let commonIndent = firstLineIndent;
-        for (let i = 1; i < lines.length; i++) {
-            const lineIndent = lines[i].search(/\S/);
-            commonIndent = Math.min(commonIndent, lineIndent);
-        }
-        const trimmedLines = lines.map(line => line.slice(commonIndent));
-        return trimmedLines.join('\n');
-    }
     getFields() {
         let fields = {};
         for (let field of this.field_names) {
@@ -789,7 +775,7 @@ class ExtendedInlineNote extends AbstractNote {
             fields[this.current_field] += word + " ";
         }
         for (let key in fields) {
-            fields[key] = this.formatter.format(this.removeCommonIndent(fields[key]), false, false).trim();
+            fields[key] = this.formatter.format(fields[key], false, false).trim();
         }
         return fields;
     }
@@ -52777,6 +52763,16 @@ class FormatConverter {
         });
         return markdownCode;
     }
+    preprocessing(str) {
+        str = this.remove_common_indent(str);
+        str = str.replaceAll(/(\^[\w\d]{6})(?!\|)/g, ""); // [[L3. (Root) GANs#^a18e8e|(참고)]] 와 같은 block reference 는 그대로 두고, ^3a3214 처럼 그냥 지저분한 주소만 제거하기 위한 정규식
+        str = str.replaceAll(/%% OND: \d+ %%/g, ""); // annotation OND 제거 (%%가 짝이 안 맞는 경우가 있기 때문에, %% 사이 %% 를 지우려 하면 안됨)
+        str = str.replaceAll(/%% ID: \d+ ENDI %%/g, ""); // annotation ID 제거 (%%가 짝이 안 맞는 경우가 있기 때문에, %% 사이 %% 를 지우려 하면 안됨)
+        str = str.replaceAll(/%%\d\d\d\d-\d\d-\d\d%%/g, ""); // annotation date 제거 (%%가 짝이 안 맞는 경우가 있기 때문에, %% 사이 %% 를 지우려 하면 안됨)
+        str = str.replaceAll(/%%/g, ""); // annotation 자체 제거
+        str = str.replaceAll(/<!--[\s\S]*?-->/g, ""); // annotation 제거
+        return str;
+    }
     toHtml(str) {
         const lines = str.split("\n");
         let result = "";
@@ -52870,6 +52866,7 @@ class FormatConverter {
         return `<tts service="android" voice="en_US"><u> ${str} </u></tts>`;
     }
     format(note_text, cloze, highlights_to_cloze) {
+        note_text = this.preprocessing(note_text);
         note_text = this.obsidian_to_anki_math(note_text);
         //Extract the parts that are anki math
         let math_matches;
@@ -52901,6 +52898,324 @@ class FormatConverter {
         }
         return note_text;
     }
+    removeCommonIndent(text) {
+        const lines = text.split('\n').filter(line => line.trim() !== '');
+        if (lines.length === 0) {
+            return '';
+        }
+        const firstLineIndent = lines[0].search(/\S/);
+        let commonIndent = firstLineIndent;
+        for (let i = 1; i < lines.length; i++) {
+            const lineIndent = lines[i].search(/\S/);
+            commonIndent = Math.min(commonIndent, lineIndent);
+        }
+        const trimmedLines = lines.map(line => line.slice(commonIndent));
+        return trimmedLines.join('\n');
+    }
+    min(a, b) {
+        return a < b ? a : b;
+    }
+    remove_common_indent(str) {
+        // 공통 indent 제거
+        let min_indent_length = 100000;
+        for (let line of str.split("\n")) {
+            let match = /^(\t*)[\s\S]+/g.exec(line);
+            if (match !== null) {
+                let indent_length = match[1].length;
+                min_indent_length = this.min(min_indent_length, indent_length);
+            }
+        }
+        if ((min_indent_length !== 0) && (min_indent_length !== 100000)) {
+            let reg = new RegExp("^" + "\t".repeat(min_indent_length), "gm");
+            str = str.replaceAll(reg, "");
+        }
+        return str;
+    }
+}
+
+class TreeDictToAnkiCards {
+    allFile;
+    obToTreeAndDict;
+    constructor(file) {
+        this.allFile = file;
+        this.obToTreeAndDict = new ObnoteToTreeAndDict();
+    }
+    escapeRegexSymbols(pattern) {
+        const symbols = ['\\', '/', '.', '+', '*', '?', '|', '(', ')', '[', ']', '{', '}', '^', '$'];
+        const escapedPattern = pattern.replace(new RegExp(`[${symbols.join('\\')}]`, 'g'), '\\$&');
+        return escapedPattern;
+    }
+    findOrSetAnkiCardID(anki_front, position) {
+        let id = null;
+        // get id 맨 위에 있는 거 하나만 가져오면 되기에 exec 를 사용
+        for (let match_id of anki_front.matchAll(/%% OND: (\d+) %%/g)) {
+            id = Number(match_id[1]);
+        }
+        return [id, -position]; // 후에 -position 을 찾아 다른 양식으로 추가하기 위함(ID: 1238091 양식을 1238091 로 하기 위함)
+    }
+    max(a, b) {
+        return a > b ? a : b;
+    }
+    getAnkiCardIDS() {
+        let IDS = [];
+        for (let matches of this.allFile.file.matchAll(/%%<br>STARTI[\s\S]*?ID: (\d+?) /g)) {
+            let id = Number(matches[1]);
+            IDS.push(id);
+        }
+        //let matches = /^--[\s\S]*?anki_id: (\d+)\n[\s\S]*?---\n/g.exec(this.allFile.file)
+        //if (matches !== null) {
+        //	IDS.push(Number(matches[1]))
+        //}
+        for (let matches of this.allFile.file.matchAll(/%% OND: (\d+) %%/g)) {
+            let id = Number(matches[1]);
+            IDS.push(id);
+        }
+        return IDS;
+    }
+    postprocess_file_contents(str) {
+        // 미리 바꾸면 ID 넣을 position 이 어긋나기 때문에 postprocess
+        str = str.replaceAll(/\!\[\[/gm, "[["); // embedding 제거
+        str = str.replaceAll(/^---\n[\s\S]*?\n---\n/g, ""); // frontmatter 제거
+        str = str.replaceAll(/(#)([\w\-_\/]+\n)/gm, ``); // tag 를 제거
+        str = str.replace(/^(# )([^\n]+)\n/gm, ``); // header 1 를 제거
+        return str;
+    }
+    buildObsidianNoteToAnkiCard() {
+        //let tfile = app.vault.getAbstractFileByPath(this.allFile.path) as TFile
+        let text = this.allFile.file;
+        // exclude certain files
+        let file_name = this.allFile.path.split("/").pop();
+        let folder_path = this.allFile.path.split("/").slice(0, -1).join("/");
+        let file_condition = /L0\.|L1\.|L3\.|\(T\)|\(Cleaning\)|\(Meeting\)/g.exec(file_name) !== null;
+        let folder_condition = /L0\.|L1\.|L3\.|Templ|0. Inbox|Welcome|hee-publish|Daily|Gantt|Attachment|supplement|References/gi.exec(folder_path) !== null;
+        if (file_condition || folder_condition) {
+            this.allFile.file = this.allFile.file.replaceAll(/^---\n---\n/g, "");
+            this.allFile.file = this.allFile.file.replaceAll(/^---\nanki_id: \d*?\n---\n/g, "");
+            this.allFile.file = this.allFile.file.replaceAll(/^anki_id: \d*?\n/gm, "");
+            return;
+        }
+        let tree = this.obToTreeAndDict.buildTreeFromIndentContent(this.allFile.file);
+        let [treeDict, treeDict_position] = this.obToTreeAndDict.dfsQueue(tree);
+        // for loop with key and value of dict
+        for (let [anki_front, anki_back_array] of Object.entries(treeDict)) {
+            let position_ = treeDict_position[anki_front];
+            anki_front = this.obToTreeAndDict.postprocessing(anki_front);
+            let anki_back = this.obToTreeAndDict.postprocessing(anki_back_array.join("\n"));
+            text = `[Basic(MD)] **[Imagine the contents]**<br> Back: [Contents]`;
+            let [id, position] = this.findOrSetAnkiCardID(anki_front, position_);
+            let obnote = new ExtendedInlineNote(text, this.allFile.data.fields_dict, this.allFile.data.curly_cloze, this.allFile.data.highlights_to_cloze, this.allFile.formatter);
+            let parsed = obnote.parse(this.allFile.target_deck, this.allFile.url, this.allFile.frozen_fields_dict, this.allFile.data, this.allFile.path);
+            parsed.identifier = id;
+            // post processing before converting it into HTML format
+            if (anki_back.includes("매우 느린데")) {
+                console.log("");
+            }
+            anki_front = this.postprocess_file_contents(anki_front);
+            anki_back = this.postprocess_file_contents(anki_back);
+            parsed.note["fields"]["Front"] += `${parsed.note["fields"]["MDContext"]}` + "<br>" + obnote.formatter.format(anki_front, false, false);
+            parsed.note["fields"]["Back"] = "";
+            parsed.note["fields"]["Back"] += obnote.formatter.format(anki_back, false, false);
+            if (parsed.identifier == null) {
+                this.allFile.inline_notes_to_add.push(parsed.note);
+                this.allFile.inline_id_indexes.push(position); // 어디에 ID: 123098123 를 넣을 것인지 이때 정함
+            }
+            else if (!this.allFile.data.EXISTING_IDS.includes(id)) {
+                new obsidian.Notice(`OBnode to Anki with id ${parsed.identifier} does not exist in Anki!\n[FILE]\n${this.allFile.path}`, 50000);
+                console.warn("OBnote to Anki with id", parsed.identifier, " in file ", this.allFile.path, " does not exist in Anki!");
+            }
+            else {
+                this.allFile.notes_to_edit.push(parsed);
+            }
+        }
+    }
+}
+class ObnoteToTreeAndDict {
+    getIndent(line) {
+        /*
+        buildTreeFromIndentContent 에서 아래 행으로 관련없는 모든 행을 한 줄로 처리되게 했기 때문에 여기서는 pure indent 만 추출하면 된다.
+        contentStr = contentStr.replace(/\n([\s\t]*)(?![\s\t]*- |[\s\t]*#)/g, "☰$1")
+        */
+        let indent = /^(\t*)/g.exec(line);
+        if (indent === null) {
+            return null;
+        }
+        else {
+            return indent[1];
+        }
+    }
+    postprocessing(str) {
+        return str.replace(/☰/g, "\n");
+    }
+    getSafePosition(line) {
+        // line 에서 ID 적을 포지션을 구할 때, ^12387 나 ```python ``` 가 있으면 그 앞에 적어야 에러가 없음
+        let position = line.length;
+        let block_ref = /\^\d+\s*/g.exec(line);
+        let code_block = /☰\t*?```(\w)+☰[\s\S]*?```/g.exec(line);
+        if (block_ref !== null) {
+            position -= block_ref[0].length;
+        }
+        if (code_block !== null) {
+            position -= code_block[0].length;
+        }
+        return position;
+    }
+    buildTreeFromIndentContent(contentStr) {
+        // 다음 행이 - # 로 시작하지 않으면 \n 을 없애서 한줄처럼 처리되게 한다. 나중에 ☰ 을 다시 \n 으로 바꿔야 함
+        // 이렇게 되면, frontmatter 가 header 위에 있는 경우, 두 줄로 처리되어 frontmatter 가 무시되게 된다. 왜냐하면 line.trim().startsWith("- ") 에서 currentValue 를 += 가 아니라 = 로 대체하기 때문이다. 하지만, frontmatter 는 어차피 의미있는 정보가 아니므로 무시해도 된다.
+        contentStr = contentStr.replaceAll(/\n([\t]*)(?![\t]*- |[\t]*#)/g, "☰$1");
+        let content = contentStr.split("\n");
+        const stack = [];
+        const rootNodes = [];
+        let currentValue = "";
+        let line_position = 0;
+        let offset = 0;
+        for (const line of content) {
+            if (line.includes("매우 느린데")) {
+                console.log("");
+            }
+            // - 가 아니면 다음에 올 - 에 한줄로 포함되도록 한다.
+            if (!line.trim().startsWith("- ")) {
+                currentValue = line + "☰";
+                line_position += line.length + 1;
+                continue;
+            }
+            offset = this.getSafePosition(line);
+            const indentLevel = this.getIndent(line);
+            //if (indentLevel === null) {
+            //	currentValue += line + "☰"
+            //	continue
+            //}
+            let node = null;
+            if (stack.length === 0 || indentLevel.length === 0) {
+                node = {
+                    value: currentValue + line,
+                    children: [],
+                    position: line_position + offset, // \n 에 해당하는 대채문자 ☰ 제거
+                };
+                rootNodes.push(node);
+            }
+            else {
+                node = {
+                    value: line,
+                    children: [],
+                    position: line_position + offset, // \n 에 해당하는 대채문자 ☰ 제거
+                };
+                const parent = stack[indentLevel.length - 1];
+                parent.children.push(node);
+            }
+            stack[indentLevel.length] = node;
+            stack.length = indentLevel.length + 1;
+            line_position += line.length + 1;
+        }
+        return { value: "- ROOT", children: rootNodes, position: 0 };
+    }
+    dfsQueue(root) {
+        const queue = [root];
+        const result = [];
+        const result_QA = {};
+        const result_QA_position = {}; // ID 를 넣을 곳
+        let context = [];
+        while (queue.length > 0) {
+            const currentNode = queue.pop();
+            let indent = this.getIndent(currentNode.value);
+            // context 는 항상 한단계 위 노드까지만 보여주도록 depth 에 맞게 pop()
+            while (context.length > indent.length) {
+                context.pop();
+            }
+            if (context.length !== 0) {
+                result.push(`[Q] ${context} [A] ${currentNode.value}`);
+                // DFS 지만, key[질문] 를 이용해서 같은 level 대답은 같은 key 에 넣는다.
+                let key = context.join("☰");
+                try {
+                    result_QA[key] = [...result_QA[key], currentNode.value];
+                }
+                catch (e) {
+                    result_QA[key] = [currentNode.value];
+                }
+            }
+            for (let i = currentNode.children.length - 1; i >= 0; i--) {
+                queue.push(currentNode.children[i]);
+            }
+            context.push(currentNode.value);
+            // context 가 변경될 때만 position 을 불러와야 질문의 마지막 부분 position 을 부를 수 있음
+            let key = context.join("☰");
+            result_QA_position[key] = currentNode.position;
+        }
+        return [result_QA, result_QA_position];
+        /* INPUT
+        const tree: TreeNode = {
+            value: "A",
+            children: [
+                {
+                    value: "\tA",
+                    children: [
+                        { value: "\t\tA", children: [] },
+                        { value: "\t\tB", children: [] },
+                    ],
+                },
+                {
+                    value: "\tB",
+                    children: [
+                        { value: "\t\tA", children: [] },
+                        { value: "\t\tB", children: [] },
+                        { value: "\t\tC", children: [] },
+                    ],
+                },
+                {
+                    value: "\tC",
+                    children: [
+                        { value: "\t\tA", children: [] },
+                        { value: "\t\tB", children: [] },
+                    ],
+                },
+            ],
+        };
+        */
+        /* OUTPUT
+        -A : (3) ['\t-A', '\t-B', '\t-C']
+        -A,[TAB]-A : (2) ['\t\t-A', '\t\t-B']
+        -A,[TAB]-B : (3) ['\t\t-A', '\t\t-B', '\t\t-C']
+        -A,[TAB]-C : (2) ['\t\t-A', '\t\t-B']
+        */
+    }
+    test_obtoankicard(editor) {
+        const tree = {
+            value: "-A",
+            children: [
+                {
+                    value: "\t-A",
+                    children: [
+                        { value: "\t\t-A", children: [], position: 0 },
+                        { value: "\t\t-B", children: [], position: 0 },
+                    ], position: 0
+                },
+                {
+                    value: "\t-B",
+                    children: [
+                        { value: "\t\t-A", children: [], position: 0 },
+                        { value: "\t\t-B", children: [], position: 0 },
+                        { value: "\t\t-C", children: [], position: 0 },
+                    ], position: 0
+                },
+                {
+                    value: "\t-C",
+                    children: [
+                        { value: "\t\t-A", children: [], position: 0 },
+                        { value: "\t\t-B", children: [], position: 0 },
+                    ], position: 0
+                },
+            ], position: 0
+        };
+        console.log(this.dfsQueue(tree));
+        let selection = editor.getSelection();
+        let tree1 = this.buildTreeFromIndentContent(selection);
+        console.log(tree1);
+        let [treeDict, treeDict_position] = this.dfsQueue(tree1);
+        console.log(treeDict);
+        for (let [key, position] of Object.entries(treeDict_position)) {
+            console.log(`==key==\n${key}\n===\n\n==position value==\n${selection.slice(position - 10, position) + "IN" + selection.slice(position, position + 10)}\n===\n`);
+        }
+    }
 }
 
 /*Performing plugin operations on markdown file contents*/
@@ -52920,6 +53235,7 @@ function id_to_str(identifier, inline = false, comment = false) {
     return result;
 }
 function string_insert(text, position_inserts) {
+    // TODO 정리 자동 offset
     /*Insert strings in position_inserts into text, at indices.
 
     position_inserts will look like:
@@ -53106,9 +53422,11 @@ class AllFile extends AbstractFile {
     inline_id_indexes;
     regex_notes_to_add;
     regex_id_indexes;
+    tree_to_ankicard;
     constructor(file_contents, path, url, data, file_cache) {
         super(file_contents, path, url, data, file_cache);
         this.custom_regexps = data.custom_regexps;
+        this.tree_to_ankicard = new TreeDictToAnkiCards(this);
     }
     add_spans_to_ignore() {
         this.ignore_spans = [];
@@ -53174,7 +53492,6 @@ class AllFile extends AbstractFile {
         for (let note_match of this.file.matchAll(this.data.INLINE_REGEXP)) {
             // position: note 에서 anki card 가 처음 시작하는 index + anki card 에서 ENDI 전까지 문자열의 시작 index + 그 문자열의 길이 (즉, anki card 에서 ENDI 바로 앞 position)
             let [note, position] = [note_match[1], note_match.index + note_match[0].indexOf(note_match[1]) + note_match[1].length];
-            note = note.replaceAll(/(%%|\^[\w\d]{6})(?!\|)/g, ""); // [[L3. (Root) GANs#^a18e8e|(참고)]] 와 같은 block reference 는 그대로 두고, ^3a3214 처럼 그냥 지저분한 주소만 제거하기 위한 정규식
             // That second thing essentially gets the index of the end of the first capture group.
             let parsed = new ExtendedInlineNote(note, this.data.fields_dict, this.data.curly_cloze, this.data.highlights_to_cloze, this.formatter).parse(this.target_deck, this.url, this.frozen_fields_dict, this.data, this.data.add_context ? this.getContextAtIndex(note_match.index) : "");
             if (parsed.identifier == null) {
@@ -53194,113 +53511,6 @@ class AllFile extends AbstractFile {
             else {
                 this.notes_to_edit.push(parsed);
             }
-        }
-    }
-    findOrSetAnkiCardID(str) {
-        let id = null;
-        let position = null;
-        this.file = this.file.replaceAll(/^---\n---\n/g, ""); // 예외 처리
-        this.file = this.file.replaceAll(/^---\nanki_id: \n---\n/g, ""); // 예외 처리
-        this.file = this.file.replaceAll(/^---\nanki_id: 0\n---\n/g, ""); // 예외 처리
-        this.file = this.file.replaceAll(/^anki_id: \n/gm, ""); // 예외 처리
-        //this.file = this.file.replaceAll(/^---\nanki_id: \d+?\n---\n/g, "") // TODO 이 라인 지워야 함
-        //this.file = this.file.replaceAll(/^---\n[\s\S]*?\n---\n/g, "") // TODO 이 라인 지워야 함
-        let matches = /^(---\n)([\s\S]*?\n)(---\n)/g.exec(this.file);
-        if (matches !== null) {
-            let ankiid_matches = /^anki_id: (\d+)\n/gm.exec(matches[0]);
-            if (ankiid_matches !== null) {
-                id = Number(ankiid_matches[1]);
-            }
-            else {
-                this.file = this.file.replace(/^(---\n)([\s\S]*?\n)(---\n)/g, (whole, a, b, c) => {
-                    return a + b + 'anki_id: \n' + c;
-                });
-                position = matches[1].length + matches[2].length + "anki_id: ".length;
-            }
-        }
-        else {
-            this.file = "---\nanki_id: \n---\n" + this.file;
-            position = "---\nanki_id: ".length;
-        }
-        return [id, -position]; // 후에 -position 을 찾아 다른 양식으로 추가하기 위함(ID: 1238091 양식을 1238091 로 하기 위함)
-    }
-    max(a, b) {
-        return a > b ? a : b;
-    }
-    getAnkiCardIDS() {
-        let IDS = [];
-        for (let matches of this.file.matchAll(/%%<br>STARTI[\s\S]*?ID: (\d+?) /g)) {
-            let id = Number(matches[1]);
-            IDS.push(id);
-        }
-        let matches = /^--[\s\S]*?anki_id: (\d+)\n[\s\S]*?---\n/g.exec(this.file);
-        if (matches !== null) {
-            IDS.push(Number(matches[1]));
-        }
-        return IDS;
-    }
-    preprocess_file_contents(str) {
-        str = str.replaceAll(/%%[\s\S]*?%%/g, ""); // annotation 제거
-        str = str.replaceAll(/<!--[\s\S]*?-->/g, ""); // annotation 제거
-        str = str.replaceAll(/^---\n[\s\S]*?\n---\n/g, ""); // frontmatter 제거
-        str = str.replaceAll(/\!\[\[/gm, "[["); // embeddnig 제거
-        str = str.replaceAll(/<.*?>(.*?)<.*?>/gm, "$1"); // html 제거
-        str = str.replaceAll(/\*\*(.*?)\*\*/gm, "$1"); // bold 제거
-        let ret = "";
-        for (let line of str.split("\n")) {
-            const m = /^(\s*)(.*)$/gm.exec(line);
-            let [, indent, content] = m; //<ul> 을 통해 이미 특정 indent 에 속한 코드이기 때문에 첫줄에 해당하는 indent 는 없앤다
-            if (indent.length === 0) {
-                content = content.replace(/^(# )([^\n]+)/gm, `$1.=`); // header 1 를 제거
-                content = content.replaceAll(/(#)([\w\-_\/]+)/gm, `$1.=`); // tag 를 제거
-                content = content.replace(/^(##+ )([ㄱ-ㅎㅏ-ㅣ가-힣\-\w\s]+)/gm, `</ul></ul></ul></ul></ul><br><br>$1<font size="5" color='fuchsia'><strong><em> $2 </em></strong></font>`); // header 를 bold 로 바꾼다
-                content = content.replace(/^(- )([ㄱ-ㅎㅏ-ㅣ가-힣\-\w\s]+)/gm, `</ul></ul></ul></ul></ul><br><br>$1<font size="4" color='green'><em> $2 </em></font>`); // header 를 bold 로 바꾼다
-            }
-            if (indent.length >= 2) {
-                ret += `${indent}.=`;
-            }
-            else {
-                ret += `\n${indent}${content}`;
-            }
-        }
-        str = ret;
-        str = `<font size="2">${str}</font>`;
-        return str;
-    }
-    buildObsidianNoteToAnkiCard() {
-        //let tfile = app.vault.getAbstractFileByPath(this.path) as TFile
-        //console.log(this.file)
-        let text = this.file;
-        if (this.path.includes("Reference")) {
-            console.log("Reference");
-        }
-        let file_name = this.path.split("/").pop();
-        let folder_path = this.path.split("/").slice(0, -1).join("/");
-        let file_condition = /\(T\)|\(Cleaning\)|\(Meeting\)/g.exec(file_name) !== null;
-        let folder_condition = /Templ|0. Inbox|Welcome|hee-publish|Daily|Gantt|Attachment|supplement|References/gi.exec(folder_path) !== null;
-        if (file_condition || folder_condition) {
-            this.file = this.file.replaceAll(/^---\n---\n/g, "");
-            this.file = this.file.replaceAll(/^---\nanki_id: \d*?\n---\n/g, "");
-            this.file = this.file.replaceAll(/^anki_id: \d*?\n/gm, "");
-            return;
-        }
-        text = this.preprocess_file_contents(text);
-        text = `[Basic(MD)] **[Imagine the contents of this note]**<br> Back: ${text}.`;
-        let [id, position] = this.findOrSetAnkiCardID(this.file);
-        let parsed = new ExtendedInlineNote(text, this.data.fields_dict, this.data.curly_cloze, this.data.highlights_to_cloze, this.formatter).parse(this.target_deck, this.url, this.frozen_fields_dict, this.data, this.path);
-        parsed.identifier = id;
-        console.log(id, parsed);
-        parsed.note["fields"]["Front"] += `${parsed.note["fields"]["MDContext"]}`; // Front 를 DFS 경로 추가
-        if (parsed.identifier == null) {
-            this.inline_notes_to_add.push(parsed.note);
-            this.inline_id_indexes.push(position); // 어디에 ID: 123098123 를 넣을 것인지 이때 정함
-        }
-        else if (!this.data.EXISTING_IDS.includes(id)) {
-            new obsidian.Notice(`OBnode to Anki with id ${parsed.identifier} does not exist in Anki!\n[FILE]\n${this.path}`, 50000);
-            console.warn("OBnote to Anki with id", parsed.identifier, " in file ", this.path, " does not exist in Anki!");
-        }
-        else {
-            this.notes_to_edit.push(parsed);
         }
     }
     search(note_type, regexp_str) {
@@ -53344,7 +53554,7 @@ class AllFile extends AbstractFile {
     }
     scanFile() {
         this.setupScan();
-        this.buildObsidianNoteToAnkiCard();
+        this.tree_to_ankicard.buildObsidianNoteToAnkiCard();
         this.scanNotes();
         this.scanInlineNotes();
         for (let note_type in this.custom_regexps) {
@@ -53373,7 +53583,7 @@ class AllFile extends AbstractFile {
             if (identifier) {
                 let idstr = "";
                 if (id_position < 0) {
-                    idstr = identifier.toString();
+                    idstr = ` %% OND: ${identifier} %% `;
                     id_position *= -1;
                 }
                 else {
@@ -53489,7 +53699,7 @@ class FileManager {
             const i = parseInt(index);
             let file = this.ownFiles[i];
             file.scanFile(); // scan 을 get ankicardids 보다 먼저 해야함. 그래야 scnafile 에서 anki card id 를 변경하거나 삭제했을 때 get ankicard 에 적용됨
-            existing_ids_in_vault.push(...file.getAnkiCardIDS());
+            existing_ids_in_vault.push(...file.tree_to_ankicard.getAnkiCardIDS());
             if (option.includes("all")) {
                 console.log("Scan all the files");
                 files_changed.push(file);
@@ -54005,6 +54215,15 @@ class MyPlugin extends obsidian.Plugin {
         this.addSettingTab(new SettingsTab(this.app, this));
         this.addRibbonIcon('anki', 'Obsidian_to_Anki - Scan Vault', async () => {
             await this.scanVault("new");
+        });
+        this.addCommand({
+            id: 'test_test',
+            name: 'Test',
+            editorCallback: async (editor, view) => {
+                // Example usage
+                let oa = new ObnoteToTreeAndDict();
+                oa.test_obtoankicard(editor);
+            }
         });
         this.addCommand({
             id: 'anki-scan-vault-all',

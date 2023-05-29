@@ -214,6 +214,17 @@ export class FormatConverter {
         return markdownCode
     }
 
+    preprocessing(str: string): string {
+        str = this.remove_common_indent(str)
+        str = str.replaceAll(/(\^[\w\d]{6})(?!\|)/g, "") // [[L3. (Root) GANs#^a18e8e|(참고)]] 와 같은 block reference 는 그대로 두고, ^3a3214 처럼 그냥 지저분한 주소만 제거하기 위한 정규식
+        str = str.replaceAll(/%% OND: \d+ %%/g, "") // annotation OND 제거 (%%가 짝이 안 맞는 경우가 있기 때문에, %% 사이 %% 를 지우려 하면 안됨)
+        str = str.replaceAll(/%% ID: \d+ ENDI %%/g, "") // annotation ID 제거 (%%가 짝이 안 맞는 경우가 있기 때문에, %% 사이 %% 를 지우려 하면 안됨)
+        str = str.replaceAll(/%%\d\d\d\d-\d\d-\d\d%%/g, "") // annotation date 제거 (%%가 짝이 안 맞는 경우가 있기 때문에, %% 사이 %% 를 지우려 하면 안됨)
+        str = str.replaceAll(/%%/g, "") // annotation 자체 제거
+        str = str.replaceAll(/<!--[\s\S]*?-->/g, "") // annotation 제거
+        return str
+    }
+
 
     toHtml(str: string): string {
         const lines = str.split("\n");
@@ -322,6 +333,7 @@ export class FormatConverter {
     }
 
     format(note_text: string, cloze: boolean, highlights_to_cloze: boolean): string {
+        note_text = this.preprocessing(note_text)
         note_text = this.obsidian_to_anki_math(note_text)
         //Extract the parts that are anki math
         let math_matches: string[]
@@ -354,6 +366,47 @@ export class FormatConverter {
             note_text = '<link href="' + c.CODE_CSS_URL + '" rel="stylesheet">' + note_text
         }
         return note_text
+    }
+
+    removeCommonIndent(text: string): string {
+        const lines = text.split('\n').filter(line => line.trim() !== '');
+
+        if (lines.length === 0) {
+            return '';
+        }
+
+        const firstLineIndent = lines[0].search(/\S/);
+        let commonIndent = firstLineIndent;
+
+        for (let i = 1; i < lines.length; i++) {
+            const lineIndent = lines[i].search(/\S/);
+            commonIndent = Math.min(commonIndent, lineIndent);
+        }
+
+        const trimmedLines = lines.map(line => line.slice(commonIndent));
+        return trimmedLines.join('\n');
+    }
+
+    min(a: number, b: number): number {
+        return a < b ? a : b;
+    }
+
+
+    remove_common_indent(str: string): string {
+        // 공통 indent 제거
+        let min_indent_length = 100000
+        for (let line of str.split("\n")) {
+            let match = /^(\t*)[\s\S]+/g.exec(line)
+            if (match !== null) {
+                let indent_length = match[1].length
+                min_indent_length = this.min(min_indent_length, indent_length)
+            }
+        }
+        if ((min_indent_length !== 0) && (min_indent_length !== 100000)) {
+            let reg = new RegExp("^" + "\t".repeat(min_indent_length), "gm")
+            str = str.replaceAll(reg, "")
+        }
+        return str
     }
 
 

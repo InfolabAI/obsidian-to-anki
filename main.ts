@@ -6,6 +6,7 @@ import { ANKI_ICON } from './src/constants'
 import { settingToData } from './src/setting-to-data'
 import { FileManager } from './src/files-manager'
 import { Backlinks } from './src/backlinks'
+import { ObnoteToTreeAndDict } from './src/obnote_to_ankicards'
 
 class SuggestBacklinks extends SuggestModal<string> {
 	// backlinks 를 얻고 suggest 후 선택하면, 해당 backlink 로 이동함
@@ -281,6 +282,18 @@ export default class MyPlugin extends Plugin {
 		})
 
 		this.addCommand({
+			id: 'test_test',
+			name: 'Test',
+			editorCallback: async (editor: Editor, view: MarkdownView) => {
+				// Example usage
+				let oa = new ObnoteToTreeAndDict()
+				oa.test_obtoankicard(editor)
+			}
+
+		})
+
+
+		this.addCommand({
 			id: 'anki-scan-vault-all',
 			name: 'Scan Vault and Update All Anki Cards',
 			callback: async () => {
@@ -311,4 +324,5 @@ export default class MyPlugin extends Plugin {
 		this.saveAllData()
 		console.log('unloading Obsidian_to_Anki...');
 	}
+
 }

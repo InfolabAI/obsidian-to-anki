@@ -10,6 +10,7 @@ import * as AnkiConnect from './anki'
 import * as c from './constants'
 import { FormatConverter } from './format'
 import { CachedMetadata, HeadingCache } from 'obsidian'
+import { TreeDictToAnkiCards } from './obnote_to_ankicards'
 
 const double_regexp: RegExp = /(?:\r\n|\r|\n)((?:\r\n|\r|\n)(?:<!--)?ID: \d+)/g
 
@@ -28,6 +29,7 @@ function id_to_str(identifier: number, inline: boolean = false, comment: boolean
 }
 
 function string_insert(text: string, position_inserts: Array<[number, string]>): string {
+    // TODO 정리 자동 offset
     /*Insert strings in position_inserts into text, at indices.
 
     position_inserts will look like:
@@ -260,10 +262,12 @@ export class AllFile extends AbstractFile {
     inline_id_indexes: number[]
     regex_notes_to_add: AnkiConnectNote[]
     regex_id_indexes: number[]
+    tree_to_ankicard: TreeDictToAnkiCards
 
     constructor(file_contents: string, path: string, url: string, data: FileData, file_cache: CachedMetadata) {
         super(file_contents, path, url, data, file_cache)
         this.custom_regexps = data.custom_regexps
+        this.tree_to_ankicard = new TreeDictToAnkiCards(this)
     }
 
     add_spans_to_ignore() {
@@ -342,7 +346,6 @@ export class AllFile extends AbstractFile {
         for (let note_match of this.file.matchAll(this.data.INLINE_REGEXP)) {
             // position: note 에서 anki card 가 처음 시작하는 index + anki card 에서 ENDI 전까지 문자열의 시작 index + 그 문자열의 길이 (즉, anki card 에서 ENDI 바로 앞 position)
             let [note, position]: [string, number] = [note_match[1], note_match.index + note_match[0].indexOf(note_match[1]) + note_match[1].length]
-            note = note.replaceAll(/(%%|\^[\w\d]{6})(?!\|)/g, "") // [[L3. (Root) GANs#^a18e8e|(참고)]] 와 같은 block reference 는 그대로 두고, ^3a3214 처럼 그냥 지저분한 주소만 제거하기 위한 정규식
             // That second thing essentially gets the index of the end of the first capture group.
             let parsed = new ExtendedInlineNote(
                 note,
@@ -375,129 +378,6 @@ export class AllFile extends AbstractFile {
         }
     }
 
-    findOrSetAnkiCardID(str: string): number[] {
-        let id = null
-        let position = null
-        this.file = this.file.replaceAll(/^---\n---\n/g, "") // 예외 처리
-        this.file = this.file.replaceAll(/^---\nanki_id: \n---\n/g, "") // 예외 처리
-        this.file = this.file.replaceAll(/^---\nanki_id: 0\n---\n/g, "") // 예외 처리
-        this.file = this.file.replaceAll(/^anki_id: \n/gm, "") // 예외 처리
-        //this.file = this.file.replaceAll(/^---\nanki_id: \d+?\n---\n/g, "") // TODO 이 라인 지워야 함
-        //this.file = this.file.replaceAll(/^---\n[\s\S]*?\n---\n/g, "") // TODO 이 라인 지워야 함
-        let matches = /^(---\n)([\s\S]*?\n)(---\n)/g.exec(this.file)
-        if (matches !== null) {
-            let ankiid_matches = /^anki_id: (\d+)\n/gm.exec(matches[0])
-            if (ankiid_matches !== null) {
-                id = Number(ankiid_matches[1])
-            }
-            else {
-                this.file = this.file.replace(/^(---\n)([\s\S]*?\n)(---\n)/g, (whole, a, b, c) => {
-                    return a + b + 'anki_id: \n' + c
-                }
-                )
-                position = matches[1].length + matches[2].length + "anki_id: ".length
-            }
-        }
-        else {
-            this.file = "---\nanki_id: \n---\n" + this.file
-            position = "---\nanki_id: ".length
-        }
-        return [id, -position] // 후에 -position 을 찾아 다른 양식으로 추가하기 위함(ID: 1238091 양식을 1238091 로 하기 위함)
-    }
-    max(a: number, b: number): number {
-        return a > b ? a : b;
-    }
-
-    getAnkiCardIDS(): number[] {
-        let IDS = []
-        for (let matches of this.file.matchAll(/%%<br>STARTI[\s\S]*?ID: (\d+?) /g)) {
-            let id = Number(matches[1])
-            IDS.push(id)
-        }
-        let matches = /^--[\s\S]*?anki_id: (\d+)\n[\s\S]*?---\n/g.exec(this.file)
-        if (matches !== null) {
-            IDS.push(Number(matches[1]))
-        }
-        return IDS
-    }
-
-    preprocess_file_contents(str: string): string {
-        str = str.replaceAll(/%%[\s\S]*?%%/g, "") // annotation 제거
-        str = str.replaceAll(/<!--[\s\S]*?-->/g, "") // annotation 제거
-        str = str.replaceAll(/^---\n[\s\S]*?\n---\n/g, "") // frontmatter 제거
-        str = str.replaceAll(/\!\[\[/gm, "[[") // embeddnig 제거
-        str = str.replaceAll(/<.*?>(.*?)<.*?>/gm, "$1") // html 제거
-        str = str.replaceAll(/\*\*(.*?)\*\*/gm, "$1") // bold 제거
-        let ret = ""
-        for (let line of str.split("\n")) {
-            const m = /^(\s*)(.*)$/gm.exec(line)
-            let [, indent, content] = m; //<ul> 을 통해 이미 특정 indent 에 속한 코드이기 때문에 첫줄에 해당하는 indent 는 없앤다
-            if (indent.length === 0) {
-                content = content.replace(/^(# )([^\n]+)/gm, `$1.=`) // header 1 를 제거
-                content = content.replaceAll(/(#)([\w\-_\/]+)/gm, `$1.=`) // tag 를 제거
-                content = content.replace(/^(##+ )([ㄱ-ㅎㅏ-ㅣ가-힣\-\w\s]+)/gm, `</ul></ul></ul></ul></ul><br><br>$1<font size="5" color='fuchsia'><strong><em> $2 </em></strong></font>`) // header 를 bold 로 바꾼다
-                content = content.replace(/^(- )([ㄱ-ㅎㅏ-ㅣ가-힣\-\w\s]+)/gm, `</ul></ul></ul></ul></ul><br><br>$1<font size="4" color='green'><em> $2 </em></font>`) // header 를 bold 로 바꾼다
-            }
-            if (indent.length >= 2) {
-                ret += `${indent}.=`
-            }
-            else {
-                ret += `\n${indent}${content}`
-            }
-        }
-        str = ret
-        str = `<font size="2">${str}</font>`
-        return str
-    }
-
-    buildObsidianNoteToAnkiCard() {
-        //let tfile = app.vault.getAbstractFileByPath(this.path) as TFile
-        //console.log(this.file)
-        let text = this.file
-        if (this.path.includes("Reference")) {
-            console.log("Reference")
-        }
-        let file_name = this.path.split("/").pop()
-        let folder_path = this.path.split("/").slice(0, -1).join("/")
-        let file_condition = /\(T\)|\(Cleaning\)|\(Meeting\)/g.exec(file_name) !== null
-        let folder_condition = /Templ|0. Inbox|Welcome|hee-publish|Daily|Gantt|Attachment|supplement|References/gi.exec(folder_path) !== null
-
-        if (file_condition || folder_condition) {
-            this.file = this.file.replaceAll(/^---\n---\n/g, "")
-            this.file = this.file.replaceAll(/^---\nanki_id: \d*?\n---\n/g, "")
-            this.file = this.file.replaceAll(/^anki_id: \d*?\n/gm, "")
-            return
-        }
-        text = this.preprocess_file_contents(text)
-        text = `[Basic(MD)] **[Imagine the contents of this note]**<br> Back: ${text}.`
-        let [id, position] = this.findOrSetAnkiCardID(this.file)
-        let parsed = new ExtendedInlineNote(
-            text,
-            this.data.fields_dict,
-            this.data.curly_cloze,
-            this.data.highlights_to_cloze,
-            this.formatter
-        ).parse(
-            this.target_deck,
-            this.url,
-            this.frozen_fields_dict,
-            this.data,
-            this.path
-        )
-        parsed.identifier = id
-        console.log(id, parsed)
-        parsed.note["fields"]["Front"] += `${parsed.note["fields"]["MDContext"]}`  // Front 를 DFS 경로 추가
-
-        if (parsed.identifier == null) {
-            this.inline_notes_to_add.push(parsed.note)
-            this.inline_id_indexes.push(position) // 어디에 ID: 123098123 를 넣을 것인지 이때 정함
-        } else if (!this.data.EXISTING_IDS.includes(id)) {
-            new Notice(`OBnode to Anki with id ${parsed.identifier} does not exist in Anki!\n[FILE]\n${this.path}`, 50000)
-            console.warn("OBnote to Anki with id", parsed.identifier, " in file ", this.path, " does not exist in Anki!")
-        } else {
-            this.notes_to_edit.push(parsed)
-        }
-    }
 
     search(note_type: string, regexp_str: string) {
         //Search the file for regex matches
@@ -548,7 +428,7 @@ export class AllFile extends AbstractFile {
 
     scanFile() {
         this.setupScan()
-        this.buildObsidianNoteToAnkiCard()
+        this.tree_to_ankicard.buildObsidianNoteToAnkiCard()
         this.scanNotes()
         this.scanInlineNotes()
         for (let note_type in this.custom_regexps) {
@@ -582,7 +462,7 @@ export class AllFile extends AbstractFile {
                 if (identifier) {
                     let idstr = ""
                     if (id_position < 0) {
-                        idstr = identifier.toString()
+                        idstr = ` %% OND: ${identifier} %% `
                         id_position *= -1
                     }
                     else {

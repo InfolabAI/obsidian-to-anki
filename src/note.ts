@@ -53,7 +53,7 @@ abstract class AbstractNote {
 
     constructor(note_text: string, fields_dict: FIELDS_DICT, curly_cloze: boolean, highlights_to_cloze: boolean, formatter: FormatConverter) {
         app.metadataCache.resolvedLinks
-        this.text = note_text.trim()
+        this.text = note_text
         this.current_field_num = 0
         this.delete = false
         this.no_note_type = false
@@ -228,25 +228,6 @@ export class ExtendedInlineNote extends AbstractNote {
         return [line, this.current_field]
     }
 
-    removeCommonIndent(text: string): string {
-        const lines = text.split('\n').filter(line => line.trim() !== '');
-
-        if (lines.length === 0) {
-            return '';
-        }
-
-        const firstLineIndent = lines[0].search(/\S/);
-        let commonIndent = firstLineIndent;
-
-        for (let i = 1; i < lines.length; i++) {
-            const lineIndent = lines[i].search(/\S/);
-            commonIndent = Math.min(commonIndent, lineIndent);
-        }
-
-        const trimmedLines = lines.map(line => line.slice(commonIndent));
-        return trimmedLines.join('\n');
-    }
-
 
     getFields(): Record<string, string> {
         let fields: Record<string, string> = {}
@@ -264,7 +245,7 @@ export class ExtendedInlineNote extends AbstractNote {
         }
         for (let key in fields) {
             fields[key] = this.formatter.format(
-                this.removeCommonIndent(fields[key]),
+                fields[key],
                 false, false
             ).trim()
         }
