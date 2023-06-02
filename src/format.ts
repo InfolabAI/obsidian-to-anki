@@ -232,6 +232,7 @@ export class FormatConverter {
         str = str.replaceAll(/%% ID: \d+ ENDI %%/g, "") // annotation ID 제거 (%%가 짝이 안 맞는 경우가 있기 때문에, %% 사이 %% 를 지우려 하면 안됨)
         str = str.replaceAll(/(%%|)<br>STARTI[\s\S]*?Back:[\s\S]*?%%/g, "") // annotation ID 제거 (%%가 짝이 안 맞는 경우가 있기 때문에, %% 사이 %% 를 지우려 하면 안됨)
         str = str.replaceAll(/%%\d\d\d\d-\d\d-\d\d%%/g, "") // annotation date 제거 (%%가 짝이 안 맞는 경우가 있기 때문에, %% 사이 %% 를 지우려 하면 안됨)
+        str = str.replaceAll(/\n+/g, "\n") // 다중 \n 하나로 변경
         str = str.replaceAll(/%%/g, "") // annotation 자체 제거
         str = str.replaceAll(/<!--[\s\S]*?-->/g, "") // annotation 제거
         str = str.replaceAll(/(#)([\w가-힣\-_\/]+[\n\s])/gm, ``) // tag 를 제거
@@ -305,7 +306,7 @@ export class FormatConverter {
         tmp_ret = tmp_ret.replaceAll(/\[\[.*?\]\]/g, "")//혹시 모를 embedding제외
         tmp_ret = tmp_ret.replaceAll(/<code[\s\S]*?<\/code>/g, "")
         tmp_ret = tmp_ret.replaceAll(/<\math[\s\S]*?<\/math/g, "") //math 제외
-        for (let match of tmp_ret.matchAll(/[a-zA-Z0-9\.\?,\-\s]+/g)) {
+        for (let match of tmp_ret.matchAll(/[a-zA-Z0-9\.\?,\-\s]+/g)) { // TTS
             if (match[0].includes("png")) {
                 console.log("breakpoint")
             }
@@ -412,16 +413,20 @@ export class FormatConverter {
     remove_common_indent(str: string): string {
         // 공통 indent 제거
         let min_indent_length = 100000
-        for (let line of str.split("\n")) {
-            let match = /^(\t*)[\s\S]+/g.exec(line)
+        let lines = str.split("\n")
+        for (let line of lines) {
+            let match = /^(\s*)[^\s]+/g.exec(line)
             if (match !== null) {
                 let indent_length = match[1].length
                 min_indent_length = this.min(min_indent_length, indent_length)
             }
         }
         if ((min_indent_length !== 0) && (min_indent_length !== 100000)) {
-            let reg = new RegExp("^" + "\t".repeat(min_indent_length), "gm")
+            let reg = new RegExp("^" + "\s".repeat(min_indent_length), "gm")
             str = str.replaceAll(reg, "")
+        }
+        if (min_indent_length !== 100000) {
+            str = lines.map(line => line.slice(min_indent_length)).join('\n');
         }
         return str
     }

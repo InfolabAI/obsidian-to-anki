@@ -52780,6 +52780,7 @@ class FormatConverter {
         str = str.replaceAll(/%% ID: \d+ ENDI %%/g, ""); // annotation ID 제거 (%%가 짝이 안 맞는 경우가 있기 때문에, %% 사이 %% 를 지우려 하면 안됨)
         str = str.replaceAll(/(%%|)<br>STARTI[\s\S]*?Back:[\s\S]*?%%/g, ""); // annotation ID 제거 (%%가 짝이 안 맞는 경우가 있기 때문에, %% 사이 %% 를 지우려 하면 안됨)
         str = str.replaceAll(/%%\d\d\d\d-\d\d-\d\d%%/g, ""); // annotation date 제거 (%%가 짝이 안 맞는 경우가 있기 때문에, %% 사이 %% 를 지우려 하면 안됨)
+        str = str.replaceAll(/\n+/g, "\n"); // 다중 \n 하나로 변경
         str = str.replaceAll(/%%/g, ""); // annotation 자체 제거
         str = str.replaceAll(/<!--[\s\S]*?-->/g, ""); // annotation 제거
         str = str.replaceAll(/(#)([\w가-힣\-_\/]+[\n\s])/gm, ``); // tag 를 제거
@@ -52845,7 +52846,7 @@ class FormatConverter {
         tmp_ret = tmp_ret.replaceAll(/\[\[.*?\]\]/g, ""); //혹시 모를 embedding제외
         tmp_ret = tmp_ret.replaceAll(/<code[\s\S]*?<\/code>/g, "");
         tmp_ret = tmp_ret.replaceAll(/<\math[\s\S]*?<\/math/g, ""); //math 제외
-        for (let match of tmp_ret.matchAll(/[a-zA-Z0-9\.\?,\-\s]+/g)) {
+        for (let match of tmp_ret.matchAll(/[a-zA-Z0-9\.\?,\-\s]+/g)) { // TTS
             if (match[0].includes("png")) {
                 console.log("breakpoint");
             }
@@ -52934,16 +52935,20 @@ class FormatConverter {
     remove_common_indent(str) {
         // 공통 indent 제거
         let min_indent_length = 100000;
-        for (let line of str.split("\n")) {
-            let match = /^(\t*)[\s\S]+/g.exec(line);
+        let lines = str.split("\n");
+        for (let line of lines) {
+            let match = /^(\s*)[^\s]+/g.exec(line);
             if (match !== null) {
                 let indent_length = match[1].length;
                 min_indent_length = this.min(min_indent_length, indent_length);
             }
         }
         if ((min_indent_length !== 0) && (min_indent_length !== 100000)) {
-            let reg = new RegExp("^" + "\t".repeat(min_indent_length), "gm");
+            let reg = new RegExp("^" + "\s".repeat(min_indent_length), "gm");
             str = str.replaceAll(reg, "");
+        }
+        if (min_indent_length !== 100000) {
+            str = lines.map(line => line.slice(min_indent_length)).join('\n');
         }
         return str;
     }
@@ -53091,7 +53096,7 @@ class ObnoteToTreeAndDict {
     buildTreeFromIndentContent(contentStr, file_path) {
         // 다음 행이 - # 로 시작하지 않으면 \n 을 없애서 한줄처럼 처리되게 한다. 나중에 ☰ 을 다시 \n 으로 바꿔야 함
         // 이렇게 되면, frontmatter 가 header 위에 있는 경우, 두 줄로 처리되어 frontmatter 가 무시되게 된다. 왜냐하면 line.trim().startsWith("- ") 에서 currentValue 를 += 가 아니라 = 로 대체하기 때문이다. 하지만, frontmatter 는 어차피 의미있는 정보가 아니므로 무시해도 된다.
-        contentStr = contentStr.replaceAll(/\n([\t]*)(?![\t]*- )/g, "☰$1");
+        contentStr = contentStr.replaceAll(/\n([\s]*)(?![\s]*- )/g, "☰$1");
         contentStr = contentStr.replaceAll(/☰#/g, "\n#"); // 헤더는 어차피 자연스럽게 한줄로 처리되므로, 여기서는 다시 \n 을 붙여줌. 중요한건 - 의 뒷부분을 ☰ 로 변경하는 것이다. ☰ 라는 하나의 문자로 \n 와 동일한 길이로 정한 이유는 position 계산을 정확히 하기 위해서이다.
         let content = contentStr.split("\n");
         const stack = [];
