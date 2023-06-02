@@ -28,9 +28,11 @@ export class TreeDictToAnkiCards {
 
 	findOrSetAnkiCardID(anki_front: string, position: number): number[] {
 		let id = null
-		// get id 맨 위에 있는 거 하나만 가져오면 되기에 exec 를 사용
-		for (let match_id of anki_front.matchAll(/%% OND: (\d+) %%/g)) {
-			id = Number(match_id[1])
+		// get id 맨 위에 있는 거 하나만 가져오면 안 됨 그 이유는 두 단계 불릿 중 아래 불릿만 카드를 새로 만들어야 할 때, 맨 위 불릿 id 로 처리되기 때문
+		let bullet = anki_front.match(/^\s*- .+/gm)
+		let id_match = /%% OND: (\d+) %%/g.exec(bullet.pop())
+		if (id_match !== null) {
+			id = Number(id_match[1])
 		}
 
 		return [id, -position] // 후에 -position 을 찾아 다른 양식으로 추가하기 위함(ID: 1238091 양식을 1238091 로 하기 위함)
@@ -118,9 +120,6 @@ export class TreeDictToAnkiCards {
 			)
 			parsed.identifier = id
 			// post processing before converting it into HTML format
-			if (anki_back.includes("매우 느린데")) {
-				console.log("")
-			}
 			anki_front = this.postprocess_file_contents(anki_front)
 			anki_back = this.postprocess_file_contents(anki_back)
 
@@ -164,7 +163,7 @@ export class ObnoteToTreeAndDict {
 	getSafePosition(line: string): number {
 		// line 에서 ID 적을 포지션을 구할 때, ^12387 나 ```python ``` 가 있으면 그 앞에 적어야 에러가 없음
 		let position = line.length
-		let block_ref = /\^[\da-z]+\s*/g.exec(line)
+		let block_ref = /\s\^[\da-z]+\s*/g.exec(line) // [[a#^123|b]] 이 경우를 제외하기 위해 앞에 \s를 붙임
 		let code_block = /☰\t*?```(\w)+☰[\s\S]*?```/g.exec(line)
 		if (block_ref !== null && code_block !== null) {
 			position = Math.min(block_ref.index, code_block.index)

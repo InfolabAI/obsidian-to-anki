@@ -237,6 +237,9 @@ export class FormatConverter {
         str = str.replaceAll(/<!--[\s\S]*?-->/g, "") // annotation 제거
         str = str.replaceAll(/(#)([\w가-힣\-_\/]+[\n\s])/gm, ``) // tag 를 제거
         str = str.replaceAll(/>\s*!\[\[/gm, "![[") // quote embedding 제거
+        str = str.replaceAll(/\[\[\s+/gm, "[[") // embedding 내부 공백 제거
+        str = str.replaceAll(/\s+\]\]/gm, "]]") // embedding 내부 공백 제거
+        str = str.replaceAll(/\s*\|\s*/gm, "|") // embedding 내부 공백 제거
         // 크기 조절이 있는 png, jpg 를 HTML 로 잘 변경하도록 개선 [[예.png|500]]
         // alias 가 있는 link 는 HTML 로 잘 변경도록 개선 [[예|예1]]
         // image 가 아닌 embedding HTML 로 잘 변경도록 개선 (e.g., ![[.png]], ![[.jpg]], ![[.png|500]], ![[.jpg|500]] 를 제외하고 모두 a href link 로 잘 변경함)
