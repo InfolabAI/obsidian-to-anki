@@ -77,12 +77,11 @@ export class TreeDictToAnkiCards {
 		let folder_condition = /3. Private|L0\.|L1\.|L3\.|Templ|0. Inbox|Welcome|hee-publish|Daily|Gantt|Attachment|supplement|References/gi.exec(folder_path) !== null
 
 		if (file_condition || folder_condition) {
-			this.allFile.file = this.allFile.file.replaceAll(/^---\n---\n/g, "")
-			this.allFile.file = this.allFile.file.replaceAll(/^---\nanki_id: \d*?\n---\n/g, "")
-			this.allFile.file = this.allFile.file.replaceAll(/^anki_id: \d*?\n/gm, "")
+			this.allFile.file = this.allFile.file.replaceAll(/ %% OND: \d+ %% /g, "")
 			return
 		}
 		let tree = null
+
 		try {
 			tree = this.obToTreeAndDict.buildTreeFromIndentContent(this.allFile.file, this.allFile.path)
 		}
@@ -197,7 +196,9 @@ export class ObnoteToTreeAndDict {
 		for (const line of content) {
 			// - 가 아니면 다음에 올 - 에 한줄로 포함되도록 한다.
 			if (!line.trim().startsWith("- ")) {
-				currentValue = line + "☰"
+				if (/[^\s☰"]+/.exec(line) !== null) {
+					currentValue = line + "☰"
+				}
 				line_position += line.length + 1
 				continue
 			}

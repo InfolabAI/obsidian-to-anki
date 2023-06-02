@@ -52780,7 +52780,7 @@ class FormatConverter {
         str = str.replaceAll(/%% ID: \d+ ENDI %%/g, ""); // annotation ID 제거 (%%가 짝이 안 맞는 경우가 있기 때문에, %% 사이 %% 를 지우려 하면 안됨)
         str = str.replaceAll(/(%%|)<br>STARTI[\s\S]*?Back:[\s\S]*?%%/g, ""); // annotation ID 제거 (%%가 짝이 안 맞는 경우가 있기 때문에, %% 사이 %% 를 지우려 하면 안됨)
         str = str.replaceAll(/%%\d\d\d\d-\d\d-\d\d%%/g, ""); // annotation date 제거 (%%가 짝이 안 맞는 경우가 있기 때문에, %% 사이 %% 를 지우려 하면 안됨)
-        str = str.replaceAll(/\n+/g, "\n"); // 다중 \n 하나로 변경
+        str = str.replaceAll(/^\s+\n/gm, "\n"); // 다중 \n 하나로 변경
         str = str.replaceAll(/%%/g, ""); // annotation 자체 제거
         str = str.replaceAll(/<!--[\s\S]*?-->/g, ""); // annotation 제거
         str = str.replaceAll(/(#)([\w가-힣\-_\/]+[\n\s])/gm, ``); // tag 를 제거
@@ -53010,9 +53010,7 @@ class TreeDictToAnkiCards {
         let file_condition = /\(Test\)|L0\.|L1\.|L3\.|\(T\)|\(Cleaning\)|\(Meeting\)/g.exec(file_name) !== null;
         let folder_condition = /3. Private|L0\.|L1\.|L3\.|Templ|0. Inbox|Welcome|hee-publish|Daily|Gantt|Attachment|supplement|References/gi.exec(folder_path) !== null;
         if (file_condition || folder_condition) {
-            this.allFile.file = this.allFile.file.replaceAll(/^---\n---\n/g, "");
-            this.allFile.file = this.allFile.file.replaceAll(/^---\nanki_id: \d*?\n---\n/g, "");
-            this.allFile.file = this.allFile.file.replaceAll(/^anki_id: \d*?\n/gm, "");
+            this.allFile.file = this.allFile.file.replaceAll(/ %% OND: \d+ %% /g, "");
             return;
         }
         let tree = null;
@@ -53107,7 +53105,9 @@ class ObnoteToTreeAndDict {
         for (const line of content) {
             // - 가 아니면 다음에 올 - 에 한줄로 포함되도록 한다.
             if (!line.trim().startsWith("- ")) {
-                currentValue = line + "☰";
+                if (/[^\s☰"]+/.exec(line) !== null) {
+                    currentValue = line + "☰";
+                }
                 line_position += line.length + 1;
                 continue;
             }
