@@ -165,13 +165,18 @@ export class ObnoteToTreeAndDict {
 	getSafePosition(line: string): number {
 		// line 에서 ID 적을 포지션을 구할 때, ^12387 나 ```python ``` 가 있으면 그 앞에 적어야 에러가 없음
 		let position = line.length
-		let block_ref = /\^\d+\s*/g.exec(line)
+		let block_ref = /\^[\da-z]+\s*/g.exec(line)
 		let code_block = /☰\t*?```(\w)+☰[\s\S]*?```/g.exec(line)
-		if (block_ref !== null) {
-			position -= block_ref[0].length
+		if (block_ref !== null && code_block !== null) {
+			position = Math.min(block_ref.index, code_block.index)
 		}
-		if (code_block !== null) {
-			position -= code_block[0].length
+		else if (block_ref !== null) {
+			position = block_ref.index
+		}
+		else if (code_block !== null) {
+			position = code_block.index
+		}
+		else {
 		}
 
 		return position

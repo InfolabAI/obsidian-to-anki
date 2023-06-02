@@ -52706,6 +52706,9 @@ class FormatConverter {
         for (let link of this.file_cache.links) {
             note_text = note_text.replace(new RegExp(escapeRegex(link.original), "g"), '<a href="' + this.getUrlFromLink(link.link) + '">' + link.displayText + "</a>");
         }
+        if (!(this.file_cache.hasOwnProperty("embeds"))) {
+            return note_text;
+        }
         for (let embed of this.file_cache.embeds) {
             let matches = /!\[\[(.*?)\]\](?<!png\]\]|jpg\]\]|png\|\d+\]\]|jpg\|\d+\]\])/gm.exec(note_text); // image 가 아닌 embedding 찾기 (e.g., ![[.png]], ![[.jpg]], ![[.png|500]], ![[.jpg|500]] 를 제외하고 찾기
             if (matches === null) {
@@ -53071,14 +53074,18 @@ class ObnoteToTreeAndDict {
     getSafePosition(line) {
         // line 에서 ID 적을 포지션을 구할 때, ^12387 나 ```python ``` 가 있으면 그 앞에 적어야 에러가 없음
         let position = line.length;
-        let block_ref = /\^\d+\s*/g.exec(line);
+        let block_ref = /\^[\da-z]+\s*/g.exec(line);
         let code_block = /☰\t*?```(\w)+☰[\s\S]*?```/g.exec(line);
-        if (block_ref !== null) {
-            position -= block_ref[0].length;
+        if (block_ref !== null && code_block !== null) {
+            position = Math.min(block_ref.index, code_block.index);
         }
-        if (code_block !== null) {
-            position -= code_block[0].length;
+        else if (block_ref !== null) {
+            position = block_ref.index;
         }
+        else if (code_block !== null) {
+            position = code_block.index;
+        }
+        else ;
         return position;
     }
     buildTreeFromIndentContent(contentStr, file_path) {
