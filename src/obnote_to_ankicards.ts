@@ -252,6 +252,15 @@ export class ObnoteToTreeAndDict {
 			stack.length = indentLevel.length + 1;
 			line_position += line.length + 1
 		}
+		// 만약 - 가 한 개도 없다면, note 전체를 그대로 root answer 로 만듬
+		if (rootNodes.length === 0) {
+			let node = {
+				value: currentValue,
+				children: [],
+				position: 0 // 여기 position 은 어차피 중요하지 않아 0으로 둠. currentValue 에서 문제를 만들리 없기 때문.
+			};
+			rootNodes.push(node);
+		}
 
 		// get root id position
 		let root_position = 0
