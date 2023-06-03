@@ -53180,31 +53180,42 @@ class ObnoteToTreeAndDict {
         const result = [];
         const result_QA = {};
         const result_QA_position = {}; // ID 를 넣을 곳
+        let front_notify = "";
         let context = [];
         // root anki card 생성
         let root_value = [];
         let root_key = root.value;
         for (let child of root.children) {
-            root_value = [...root_value, child.value + "☰"];
+            // 만약 child 가 있다면 문제로 만들어 질 수 있으므로, anki back 에 들어가더라도 front 에 쓰일 수 있음을 표기한다.
+            front_notify = "";
+            if (child.children.length !== 0) {
+                front_notify = ` <font color="red">→</font>`;
+            }
+            root_value = [...root_value, child.value + front_notify + "☰"];
         }
         result_QA[root_key] = root_value;
         result_QA_position[root_key] = root.position;
         while (queue.length > 0) {
+            front_notify = "";
             const currentNode = queue.pop();
             let indent = this.getIndent(currentNode.value);
             // context 는 항상 한단계 위 노드까지만 보여주도록 depth 에 맞게 pop()
             while (context.length > indent.length) {
                 context.pop();
             }
+            // 만약 child 가 있다면 문제로 만들어 질 수 있으므로, anki back 에 들어가더라도 front 에 쓰일 수 있음을 표기한다.
+            if (currentNode.children.length !== 0) {
+                front_notify = ` <font color="red">→</font>`;
+            }
             if (context.length !== 0) {
                 result.push(`[Q] ${context} [A] ${currentNode.value}`);
                 // DFS 지만, key[질문] 를 이용해서 같은 level 대답은 같은 key 에 넣는다.
                 let key = context.join("☰");
                 try {
-                    result_QA[key] = [...result_QA[key], currentNode.value];
+                    result_QA[key] = [...result_QA[key], currentNode.value + front_notify];
                 }
                 catch (e) {
-                    result_QA[key] = [currentNode.value];
+                    result_QA[key] = [currentNode.value + front_notify];
                 }
             }
             for (let i = currentNode.children.length - 1; i >= 0; i--) {
