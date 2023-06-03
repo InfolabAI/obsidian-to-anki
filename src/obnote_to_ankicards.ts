@@ -67,8 +67,8 @@ export class TreeDictToAnkiCards {
 		str = str.replace(/^(# )([^\n]+)\n/gm, ``) // header 1 를 제거
 		str = str.replace(/\n\s+(?!-|#|\w|가-힣)/gm, `\n`) // multiline 제거
 		str = str.replace(/\n+/gm, `\n`)
-		str = str.replace(/\(\(\(/gm, ``)
-		str = str.replace(/\)\)\)/gm, ``)
+		str = str.replace(/\@\@\@/gm, ``)
+		str = str.replace(/\@\@\@/gm, ``)
 		return str
 	}
 
@@ -189,10 +189,10 @@ export class ObnoteToTreeAndDict {
 	buildTreeFromIndentContent(contentStr: string, file_path: string): TreeNode {
 		// 다음 행이 - # 로 시작하지 않으면 \n 을 없애서 한줄처럼 처리되게 한다. 나중에 ☰ 을 다시 \n 으로 바꿔야 함
 		// 이렇게 되면, frontmatter 가 header 위에 있는 경우, 두 줄로 처리되어 frontmatter 가 무시되게 된다. 왜냐하면 line.trim().startsWith("- ") 에서 currentValue 를 += 가 아니라 = 로 대체하기 때문이다. 하지만, frontmatter 는 어차피 의미있는 정보가 아니므로 무시해도 된다.
-		contentStr = contentStr.replaceAll(/\(\(\([\s\S]*?\)\)\)/g, (match) => {
+		contentStr = contentStr.replaceAll(/\@\@\@[\s\S]*?\@\@\@/g, (match) => {
 			match = match.replaceAll(/\n/g, "☰")
 			if (/☰#/g.exec(match) !== null) {
-				throw new Error(`[OBnote] ${file_path} 에서 ((())) 안에 # 이 있습니다. ((())) 안에는 # 을 쓸 수 없습니다.`)
+				throw new Error(`[OBnote] ${file_path} 에서 @@@ @@@ 안에 # 이 있습니다. @@@ @@@ 안에는 # 을 쓸 수 없습니다.`)
 			}
 			return match
 		})
