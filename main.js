@@ -52733,7 +52733,8 @@ class FormatConverter {
         return note_text;
     }
     markdownTableToHtml(markdownCode) {
-        markdownCode = markdownCode.replace(/(\|.*\|.*\|)\n\|( *[-:]+[-| :]*)+\|\n(\|.*\|.*\|\n)+/g, (match, title_row, dashed_row, last_row) => {
+        // 첫 줄 regex + 두번째 줄 regex + 세번째 줄 이상들의 regex
+        markdownCode = markdownCode.replace(/(\|.*\|.*\|)\n\|( *[-:]+[-| :]*)+\|\n(\|.*\|.*\|\s*\n)+/g, (match, title_row, dashed_row, last_row) => {
             let rows = match.trim().split('\n').slice(2);
             rows = [title_row, ...rows];
             const htmlRows = rows.map(row => {
