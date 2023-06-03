@@ -171,7 +171,7 @@ export class ObnoteToTreeAndDict {
 		// line 에서 ID 적을 포지션을 구할 때, ^12387 나 ```python ``` 가 있으면 그 앞에 적어야 에러가 없음
 		let position = line.length
 		let block_ref = /\s\^[\da-z]+\s*/g.exec(line) // [[a#^123|b]] 이 경우를 제외하기 위해 앞에 \s를 붙임
-		let code_block = /☰\t*?```(\w)+☰[\s\S]*?```/g.exec(line)
+		let code_block = /☰\s*?```(\w)+☰[\s\S]*?```/g.exec(line)
 		if (block_ref !== null && code_block !== null) {
 			position = Math.min(block_ref.index, code_block.index)
 		}
@@ -190,10 +190,10 @@ export class ObnoteToTreeAndDict {
 	buildTreeFromIndentContent(contentStr: string, file_path: string): TreeNode {
 		// 다음 행이 - # 로 시작하지 않으면 \n 을 없애서 한줄처럼 처리되게 한다. 나중에 ☰ 을 다시 \n 으로 바꿔야 함
 		// 이렇게 되면, frontmatter 가 header 위에 있는 경우, 두 줄로 처리되어 frontmatter 가 무시되게 된다. 왜냐하면 line.trim().startsWith("- ") 에서 currentValue 를 += 가 아니라 = 로 대체하기 때문이다. 하지만, frontmatter 는 어차피 의미있는 정보가 아니므로 무시해도 된다.
-		contentStr = contentStr.replaceAll(/\@\@\@[\s\S]*?\@\@\@/g, (match) => {
+		contentStr = contentStr.replaceAll(/\@\@\@[\s\S]*?\@\@\@|```\w*\n[\s\S]*?```/g, (match) => {
 			match = match.replaceAll(/\n/g, "☰")
 			if (/☰#/g.exec(match) !== null) {
-				throw new Error(`[OBnote] ${file_path} 에서 @@@ @@@ 안에 # 이 있습니다. @@@ @@@ 안에는 # 을 쓸 수 없습니다.`)
+				throw new Error(`[OBnote] ${file_path} 에서 @@@ @@@ 또는 code block 안에 # 이 있습니다. # 을 쓸 수 없습니다.`)
 			}
 			return match
 		})
