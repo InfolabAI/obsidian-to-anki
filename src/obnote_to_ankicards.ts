@@ -65,9 +65,7 @@ export class TreeDictToAnkiCards {
 		str = str.replaceAll(/^---\n[\s\S]*?\n---\n/g, "") // frontmatter 제거
 		str = str.replaceAll(/(#)([\w\-_\/]+[\n\s])/gm, ``) // tag 를 제거
 		str = str.replace(/^(# )([^\n]+)\n/gm, ``) // header 1 를 제거
-		str = str.replace(/\n\s+(?!-|#|\w|가-힣)/gm, `\n`) // multiline 제거
 		str = str.replace(/\n+/gm, `\n`)
-		str = str.replace(/\@\@\@/gm, ``)
 		str = str.replace(/\@\@\@/gm, ``)
 		return str
 	}
@@ -126,9 +124,12 @@ export class TreeDictToAnkiCards {
 			)
 			parsed.identifier = id
 			// post processing before converting it into HTML format
+			if (anki_back.includes("코드")) {
+				console.log("")
+			}
+
 			anki_front = this.postprocess_file_contents(anki_front)
 			anki_back = this.postprocess_file_contents(anki_back)
-
 			parsed.note["fields"]["Front"] += `${parsed.note["fields"]["MDContext"]}` + "<br>" + obnote.formatter.format(anki_front, false, false)
 			parsed.note["fields"]["Back"] = ""
 			parsed.note["fields"]["Back"] += obnote.formatter.format(anki_back, false, false)
