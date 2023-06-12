@@ -52757,7 +52757,7 @@ class FormatConverter {
             let ret = "";
             for (let line of lines) {
                 line = line.substring(indent_to_remove.length).replaceAll("\<", "&lt;").replaceAll("\>", "&gt;"); // html code 표현을 위함
-                ret += line + "<br>";
+                ret += line + "\n"; // css 와 highligh.min.js 를 사용할 때, anki 에서 linebreak 가 되려면, \n 이 필요함
             }
             //postfix
             code.replace(/\(!code!\)/g, "`");
@@ -53015,7 +53015,7 @@ class TreeDictToAnkiCards {
         str = str.replaceAll(/(#)([\w\-_\/]+[\n\s])/gm, ``); // tag 를 제거
         str = str.replace(/^(# )([^\n]+)\n/gm, ``); // header 1 를 제거
         str = str.replace(/\n+/gm, `\n`);
-        str = str.replaceAll(new RegExp(`${programSymbol}([\\s\\S]*)${programSymbol}`, "g"), `<font size=2>---<br>$1<br>---<br></font>`); // font size 바꾸기
+        str = str.replaceAll(new RegExp(`${programSymbol}([\\s\\S]*)${programSymbol}`, "g"), `<font size=2>--<br>$1<br>--<br></font>`); // font size 바꾸기
         return str;
     }
     removeDuplicatedLine(anki_back_array) {
@@ -53027,8 +53027,15 @@ class TreeDictToAnkiCards {
                 continue;
             }
             let is_bullet = false;
+            let match_last_bullet = "";
+            try {
+                match_last_bullet = bullet.match(/☰\s*- /g).pop();
+            }
+            catch {
+                is_bullet = true; // last bullet 이 없는 경우는 그냥 다 출력
+            }
             for (let [j, line] of bullet.split("☰").entries()) {
-                if (/^\s*- /g.exec(line) !== null) {
+                if (line === match_last_bullet) {
                     is_bullet = true;
                 }
                 if (standard[j] !== line || is_bullet) {

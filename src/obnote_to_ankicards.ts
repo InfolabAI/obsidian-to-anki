@@ -70,7 +70,7 @@ export class TreeDictToAnkiCards {
 		str = str.replaceAll(/(#)([\w\-_\/]+[\n\s])/gm, ``) // tag 를 제거
 		str = str.replace(/^(# )([^\n]+)\n/gm, ``) // header 1 를 제거
 		str = str.replace(/\n+/gm, `\n`)
-		str = str.replaceAll(new RegExp(`${programSymbol}([\\s\\S]*)${programSymbol}`, "g"), `<font size=2>---<br>$1<br>---<br></font>`) // font size 바꾸기
+		str = str.replaceAll(new RegExp(`${programSymbol}([\\s\\S]*)${programSymbol}`, "g"), `<font size=2>--<br>$1<br>--<br></font>`) // font size 바꾸기
 		return str
 	}
 
@@ -83,8 +83,15 @@ export class TreeDictToAnkiCards {
 				continue
 			}
 			let is_bullet = false
+			let match_last_bullet = ""
+			try {
+				match_last_bullet = bullet.match(/☰\s*- /g).pop()
+			}
+			catch {
+				is_bullet = true // last bullet 이 없는 경우는 그냥 다 출력
+			}
 			for (let [j, line] of bullet.split("☰").entries()) {
-				if (/^\s*- /g.exec(line) !== null) {
+				if (line === match_last_bullet) {
 					is_bullet = true
 				}
 				if (standard[j] !== line || is_bullet) {

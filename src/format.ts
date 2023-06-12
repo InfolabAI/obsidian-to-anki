@@ -203,7 +203,7 @@ export class FormatConverter {
             let ret = ""
             for (let line of lines) {
                 line = line.substring(indent_to_remove.length).replaceAll("\<", "&lt;").replaceAll("\>", "&gt;") // html code 표현을 위함
-                ret += line + "<br>"
+                ret += line + "\n" // css 와 highligh.min.js 를 사용할 때, anki 에서 linebreak 가 되려면, \n 이 필요함
             }
 
             //postfix
