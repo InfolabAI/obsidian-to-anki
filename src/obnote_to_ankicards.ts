@@ -5,6 +5,8 @@ import { error } from 'console';
 import { match } from 'assert';
 import { off } from 'process';
 
+const programSymbol = `<hr class="programmers">`
+
 interface TreeNode {
 	value: string;
 	children: TreeNode[];
@@ -68,8 +70,7 @@ export class TreeDictToAnkiCards {
 		str = str.replaceAll(/(#)([\w\-_\/]+[\n\s])/gm, ``) // tag 를 제거
 		str = str.replace(/^(# )([^\n]+)\n/gm, ``) // header 1 를 제거
 		str = str.replace(/\n+/gm, `\n`)
-		str = str.replace(/\@\@\@/gm, ``)
-		str = str.replaceAll(/(?!\|)(---[\s\S]*?---)(?!\|)/g, `<font size=2>$1</font>`) // font size 바꾸기
+		str = str.replaceAll(new RegExp(`${programSymbol}([\\s\\S]*)${programSymbol}`, "g"), `<font size=2>---<br>$1<br>---<br></font>`) // font size 바꾸기
 		return str
 	}
 
@@ -81,8 +82,12 @@ export class TreeDictToAnkiCards {
 			if (i === 0) {
 				continue
 			}
+			let is_bullet = false
 			for (let [j, line] of bullet.split("☰").entries()) {
-				if (standard[j] !== line) {
+				if (/^\s*- /g.exec(line) !== null) {
+					is_bullet = true
+				}
+				if (standard[j] !== line || is_bullet) {
 					ret_array = [...ret_array, line]
 				}
 			}
@@ -100,6 +105,7 @@ export class TreeDictToAnkiCards {
 
 		// exclude certain files
 		let file_name = this.allFile.path.split("/").pop()
+		console.log(file_name)
 		let folder_path = this.allFile.path.split("/").slice(0, -1).join("/")
 		let file_condition = /\(Test\)|L0\.|L1\.|L3\.|\(T\)|\(Cleaning\)|\(Meeting\)/g.exec(file_name) !== null
 		let folder_condition = /3. Private|L0\.|L1\.|L3\.|Templ|0. Inbox|Welcome|hee-publish|Daily|Gantt|Attachment|supplement|References/gi.exec(folder_path) !== null
@@ -214,7 +220,9 @@ export class ObnoteToTreeAndDict {
 		// 다음 행이 - # 로 시작하지 않으면 \n 을 없애서 한줄처럼 처리되게 한다. 나중에 ☰ 을 다시 \n 으로 바꿔야 함
 		// 이렇게 되면, frontmatter 가 header 위에 있는 경우, 두 줄로 처리되어 frontmatter 가 무시되게 된다. 왜냐하면 line.trim().startsWith("- ") 에서 currentValue 를 += 가 아니라 = 로 대체하기 때문이다. 하지만, frontmatter 는 어차피 의미있는 정보가 아니므로 무시해도 된다.
 		//(?!\|) 는 표를 무시하기 위함
-		contentStr = contentStr.replaceAll(/\@\@\@[\s\S]*?\@\@\@|```\w*\n[\s\S]*?```|(?!\|)---\n[\s\S]*?---(?!\|)/g, (match) => {
+		const regreg = new RegExp(`${programSymbol}[\\s\\S]*${programSymbol}|\`\`\`\\w*\\n[\\s\\S]*?\`\`\`|(?!\\|)---\\n[\\s\\S]*?---(?!\\|)`, "g")
+		contentStr = contentStr.replaceAll(regreg, (match) => {
+			//contentStr = contentStr.replaceAll(/\@\@\@[\s\S]*?\@\@\@|```\w*\n[\s\S]*?```|(?!\|)---\n[\s\S]*?---(?!\|)/g, (match) => {
 			match = match.replaceAll(/\n/g, "☰")
 			if (/☰#/g.exec(match) !== null) {
 				throw new Error(`[OBnote] ${file_path} 에서 @@@ @@@ 또는 code block 안에 # 이 있습니다. # 을 쓸 수 없습니다.`)

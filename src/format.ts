@@ -76,8 +76,8 @@ export class FormatConverter {
             c.OBS_DISPLAY_MATH_REGEXP, "\\[$1\\]"
         )
 
-        //inline match 와 code block 내부의 typescript ${} ${} 는 서로 구분할 수 없으므로, code block 이 아닐때만 적용해준다.
-        const lines = note_text.trim().split("\n");
+        //inline math 와 code block 내부의 typescript ${} ${} 는 서로 구분할 수 없으므로, code block 이 아닐때만 적용해준다.
+        const lines = note_text.split("\n");
         let result = ""
         let is_in_code_block = false
         for (let line of lines) {
@@ -198,7 +198,7 @@ export class FormatConverter {
 
             //precess
             const lines = code.split("<br>");
-            const m = lines[0].match(/^(\s*)(.*)$/);
+            const m = lines[0].match(/^(\s*)([\s\S]*)$/); // 이렇게 해도 앞에 indent 를 얻는다는 것을 확인함
             const [, indent_to_remove, content] = m; //<ul> 을 통해 이미 특정 indent 에 속한 코드이기 때문에 첫줄에 해당하는 indent 는 없앤다
             let ret = ""
             for (let line of lines) {
@@ -237,15 +237,12 @@ export class FormatConverter {
         str = str.replaceAll(/%%\d\d\d\d-\d\d-\d\d%%/g, "") // annotation date 제거 (%%가 짝이 안 맞는 경우가 있기 때문에, %% 사이 %% 를 지우려 하면 안됨)
         str = str.replaceAll(/^\s+\n/gm, "\n") // 다중 \n 하나로 변경
         str = str.replaceAll(/\n+/gm, "\n") // 다중 \n 하나로 변경
+        str = str.replaceAll(/%%[\s\S]*?%%/g, "") // annotation 제거
         str = str.replaceAll(/%%/g, "") // annotation 자체 제거
         str = str.replaceAll(/<!--[\s\S]*?-->/g, "") // annotation 제거
         str = str.replaceAll(/(#)([\w가-힣\-_\/]+[\n\s])/gm, ``) // tag 를 제거
         str = str.replaceAll(/>\s*!\[\[/gm, "![[") // quote embedding 제거
-        if (str.includes("import")) {
-            console.log("debug")
-        }
-
-        str = str.replaceAll(/\n(\s*)(?!\s*- |\s*\|)/g, "<br>$1") // 다음 행이 bullet 이 아닌 \n 은 모두 <br> 로 변경 (table 제외)
+        str = str.replaceAll(/(?<!\|\s*)\n(\s*)(?!\s*- |\s*\|)/g, "<br>$1") // 다음 행이 bullet 이 아닌 \n 은 모두 <br> 로 변경 (앞 뒤 table 제외)
         //str = str.replaceAll(/^---\n/gm, "<br><hr>")//<hr>
         //str = str.replaceAll(/\[\[\s+/gm, "[[") // embedding 내부 공백 제거
         //str = str.replaceAll(/\s+\]\]/gm, "]]") // embedding 내부 공백 제거
@@ -385,7 +382,7 @@ export class FormatConverter {
         note_text = note_text.replace(HIGHLIGHT_REGEXP, String.raw`<mark>$1</mark>`)
         //note_text = this.decensor(note_text, DISPLAY_CODE_REPLACE, display_code_matches, false)
         //note_text = this.decensor(note_text, INLINE_CODE_REPLACE, inline_code_matches, false)
-        note_text = this.decensor(note_text, MATH_REPLACE, math_matches, true).trim()
+        note_text = this.decensor(note_text, MATH_REPLACE, math_matches, true)
         //note_text = converter.makeHtml(note_text)
         note_text = this.toHtml(note_text)
         // Remove unnecessary paragraph tag

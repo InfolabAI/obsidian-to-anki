@@ -52644,8 +52644,8 @@ class FormatConverter {
     }
     obsidian_to_anki_math(note_text) {
         note_text = note_text.replace(OBS_DISPLAY_MATH_REGEXP, "\\[$1\\]");
-        //inline match 와 code block 내부의 typescript ${} ${} 는 서로 구분할 수 없으므로, code block 이 아닐때만 적용해준다.
-        const lines = note_text.trim().split("\n");
+        //inline math 와 code block 내부의 typescript ${} ${} 는 서로 구분할 수 없으므로, code block 이 아닐때만 적용해준다.
+        const lines = note_text.split("\n");
         let result = "";
         let is_in_code_block = false;
         for (let line of lines) {
@@ -52752,7 +52752,7 @@ class FormatConverter {
             code.replace(/`/g, "(!code!)");
             //precess
             const lines = code.split("<br>");
-            const m = lines[0].match(/^(\s*)(.*)$/);
+            const m = lines[0].match(/^(\s*)([\s\S]*)$/); // 이렇게 해도 앞에 indent 를 얻는다는 것을 확인함
             const [, indent_to_remove, content] = m; //<ul> 을 통해 이미 특정 indent 에 속한 코드이기 때문에 첫줄에 해당하는 indent 는 없앤다
             let ret = "";
             for (let line of lines) {
@@ -52785,14 +52785,12 @@ class FormatConverter {
         str = str.replaceAll(/%%\d\d\d\d-\d\d-\d\d%%/g, ""); // annotation date 제거 (%%가 짝이 안 맞는 경우가 있기 때문에, %% 사이 %% 를 지우려 하면 안됨)
         str = str.replaceAll(/^\s+\n/gm, "\n"); // 다중 \n 하나로 변경
         str = str.replaceAll(/\n+/gm, "\n"); // 다중 \n 하나로 변경
+        str = str.replaceAll(/%%[\s\S]*?%%/g, ""); // annotation 제거
         str = str.replaceAll(/%%/g, ""); // annotation 자체 제거
         str = str.replaceAll(/<!--[\s\S]*?-->/g, ""); // annotation 제거
         str = str.replaceAll(/(#)([\w가-힣\-_\/]+[\n\s])/gm, ``); // tag 를 제거
         str = str.replaceAll(/>\s*!\[\[/gm, "![["); // quote embedding 제거
-        if (str.includes("import")) {
-            console.log("debug");
-        }
-        str = str.replaceAll(/\n(\s*)(?!\s*- |\s*\|)/g, "<br>$1"); // 다음 행이 bullet 이 아닌 \n 은 모두 <br> 로 변경 (table 제외)
+        str = str.replaceAll(/(?<!\|\s*)\n(\s*)(?!\s*- |\s*\|)/g, "<br>$1"); // 다음 행이 bullet 이 아닌 \n 은 모두 <br> 로 변경 (앞 뒤 table 제외)
         //str = str.replaceAll(/^---\n/gm, "<br><hr>")//<hr>
         //str = str.replaceAll(/\[\[\s+/gm, "[[") // embedding 내부 공백 제거
         //str = str.replaceAll(/\s+\]\]/gm, "]]") // embedding 내부 공백 제거
@@ -52915,7 +52913,7 @@ class FormatConverter {
         note_text = note_text.replace(HIGHLIGHT_REGEXP, String.raw `<mark>$1</mark>`);
         //note_text = this.decensor(note_text, DISPLAY_CODE_REPLACE, display_code_matches, false)
         //note_text = this.decensor(note_text, INLINE_CODE_REPLACE, inline_code_matches, false)
-        note_text = this.decensor(note_text, MATH_REPLACE, math_matches, true).trim();
+        note_text = this.decensor(note_text, MATH_REPLACE, math_matches, true);
         //note_text = converter.makeHtml(note_text)
         note_text = this.toHtml(note_text);
         // Remove unnecessary paragraph tag
@@ -52966,6 +52964,7 @@ class FormatConverter {
     }
 }
 
+const programSymbol = `<hr class="programmers">`;
 class TreeDictToAnkiCards {
     allFile;
     obToTreeAndDict;
@@ -53016,8 +53015,7 @@ class TreeDictToAnkiCards {
         str = str.replaceAll(/(#)([\w\-_\/]+[\n\s])/gm, ``); // tag 를 제거
         str = str.replace(/^(# )([^\n]+)\n/gm, ``); // header 1 를 제거
         str = str.replace(/\n+/gm, `\n`);
-        str = str.replace(/\@\@\@/gm, ``);
-        str = str.replaceAll(/(?!\|)(---[\s\S]*?---)(?!\|)/g, `<font size=2>$1</font>`); // font size 바꾸기
+        str = str.replaceAll(new RegExp(`${programSymbol}([\\s\\S]*)${programSymbol}`, "g"), `<font size=2>---<br>$1<br>---<br></font>`); // font size 바꾸기
         return str;
     }
     removeDuplicatedLine(anki_back_array) {
@@ -53028,8 +53026,12 @@ class TreeDictToAnkiCards {
             if (i === 0) {
                 continue;
             }
+            let is_bullet = false;
             for (let [j, line] of bullet.split("☰").entries()) {
-                if (standard[j] !== line) {
+                if (/^\s*- /g.exec(line) !== null) {
+                    is_bullet = true;
+                }
+                if (standard[j] !== line || is_bullet) {
                     ret_array = [...ret_array, line];
                 }
             }
@@ -53043,6 +53045,7 @@ class TreeDictToAnkiCards {
         let text = this.allFile.file;
         // exclude certain files
         let file_name = this.allFile.path.split("/").pop();
+        console.log(file_name);
         let folder_path = this.allFile.path.split("/").slice(0, -1).join("/");
         let file_condition = /\(Test\)|L0\.|L1\.|L3\.|\(T\)|\(Cleaning\)|\(Meeting\)/g.exec(file_name) !== null;
         let folder_condition = /3. Private|L0\.|L1\.|L3\.|Templ|0. Inbox|Welcome|hee-publish|Daily|Gantt|Attachment|supplement|References/gi.exec(folder_path) !== null;
@@ -53133,7 +53136,9 @@ class ObnoteToTreeAndDict {
         // 다음 행이 - # 로 시작하지 않으면 \n 을 없애서 한줄처럼 처리되게 한다. 나중에 ☰ 을 다시 \n 으로 바꿔야 함
         // 이렇게 되면, frontmatter 가 header 위에 있는 경우, 두 줄로 처리되어 frontmatter 가 무시되게 된다. 왜냐하면 line.trim().startsWith("- ") 에서 currentValue 를 += 가 아니라 = 로 대체하기 때문이다. 하지만, frontmatter 는 어차피 의미있는 정보가 아니므로 무시해도 된다.
         //(?!\|) 는 표를 무시하기 위함
-        contentStr = contentStr.replaceAll(/\@\@\@[\s\S]*?\@\@\@|```\w*\n[\s\S]*?```|(?!\|)---\n[\s\S]*?---(?!\|)/g, (match) => {
+        const regreg = new RegExp(`${programSymbol}[\\s\\S]*${programSymbol}|\`\`\`\\w*\\n[\\s\\S]*?\`\`\`|(?!\\|)---\\n[\\s\\S]*?---(?!\\|)`, "g");
+        contentStr = contentStr.replaceAll(regreg, (match) => {
+            //contentStr = contentStr.replaceAll(/\@\@\@[\s\S]*?\@\@\@|```\w*\n[\s\S]*?```|(?!\|)---\n[\s\S]*?---(?!\|)/g, (match) => {
             match = match.replaceAll(/\n/g, "☰");
             if (/☰#/g.exec(match) !== null) {
                 throw new Error(`[OBnote] ${file_path} 에서 @@@ @@@ 또는 code block 안에 # 이 있습니다. # 을 쓸 수 없습니다.`);
