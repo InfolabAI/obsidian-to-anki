@@ -192,24 +192,26 @@ export class FormatConverter {
     }
 
     markdownCodeToHtml(markdownCode: string): string {
-        markdownCode = markdownCode.trim().replace(/```(\w+)\n([\s\S]*?)```/gm, (match, lang, code) => {
+        markdownCode = markdownCode.trim().replace(/```(\w+)<br>([\s\S]*?)```/gm, (match, lang, code) => { // preprocessing 에서 \n 을 <br> 로 바꾸기 때문
             //prefix
             code.replace(/`/g, "(!code!)")
 
             //precess
-            const lines = code.split("\n");
+            const lines = code.split("<br>");
             const m = lines[0].match(/^(\s*)(.*)$/);
             const [, indent_to_remove, content] = m; //<ul> 을 통해 이미 특정 indent 에 속한 코드이기 때문에 첫줄에 해당하는 indent 는 없앤다
             let ret = ""
             for (let line of lines) {
                 line = line.substring(indent_to_remove.length).replaceAll("\<", "&lt;").replaceAll("\>", "&gt;") // html code 표현을 위함
-                ret += line + "\n"
+                ret += line + "<br>"
             }
 
             //postfix
             code.replace(/\(!code!\)/g, "`")
 
-            return `<pre><code class="language-${lang}">${ret}</code></pre>`;
+            //TODO 하이픈과 코드작게 처리했고, CSS 없어진거 처리해야 함
+            return `<pre><font size="3"><code class="language-${lang}">${ret}</code></font></pre>`;
+            //return `<pre><code class="language-${lang}">${ret}</code></pre>`;
         });
 
         return markdownCode;
@@ -234,10 +236,17 @@ export class FormatConverter {
         str = str.replaceAll(/(%%|)<br>STARTI[\s\S]*?Back:[\s\S]*?%%/g, "") // annotation ID 제거 (%%가 짝이 안 맞는 경우가 있기 때문에, %% 사이 %% 를 지우려 하면 안됨)
         str = str.replaceAll(/%%\d\d\d\d-\d\d-\d\d%%/g, "") // annotation date 제거 (%%가 짝이 안 맞는 경우가 있기 때문에, %% 사이 %% 를 지우려 하면 안됨)
         str = str.replaceAll(/^\s+\n/gm, "\n") // 다중 \n 하나로 변경
+        str = str.replaceAll(/\n+/gm, "\n") // 다중 \n 하나로 변경
         str = str.replaceAll(/%%/g, "") // annotation 자체 제거
         str = str.replaceAll(/<!--[\s\S]*?-->/g, "") // annotation 제거
         str = str.replaceAll(/(#)([\w가-힣\-_\/]+[\n\s])/gm, ``) // tag 를 제거
         str = str.replaceAll(/>\s*!\[\[/gm, "![[") // quote embedding 제거
+        if (str.includes("import")) {
+            console.log("debug")
+        }
+
+        str = str.replaceAll(/\n(\s*)(?!\s*- |\s*\|)/g, "<br>$1") // 다음 행이 bullet 이 아닌 \n 은 모두 <br> 로 변경 (table 제외)
+        //str = str.replaceAll(/^---\n/gm, "<br><hr>")//<hr>
         //str = str.replaceAll(/\[\[\s+/gm, "[[") // embedding 내부 공백 제거
         //str = str.replaceAll(/\s+\]\]/gm, "]]") // embedding 내부 공백 제거
         //str = str.replaceAll(/\s*\|\s*/gm, "|") // embedding 내부 공백 제거
@@ -250,7 +259,6 @@ export class FormatConverter {
 
     toHtml(str: string): string {
         const lines = str.split("\n");
-
         let result = "";
         let indentLevel = -1; // 불릿이면 첫 출에도 ul 을 넣기 위함
 

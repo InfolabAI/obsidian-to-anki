@@ -52747,21 +52747,23 @@ class FormatConverter {
         return markdownCode;
     }
     markdownCodeToHtml(markdownCode) {
-        markdownCode = markdownCode.trim().replace(/```(\w+)\n([\s\S]*?)```/gm, (match, lang, code) => {
+        markdownCode = markdownCode.trim().replace(/```(\w+)<br>([\s\S]*?)```/gm, (match, lang, code) => {
             //prefix
             code.replace(/`/g, "(!code!)");
             //precess
-            const lines = code.split("\n");
+            const lines = code.split("<br>");
             const m = lines[0].match(/^(\s*)(.*)$/);
             const [, indent_to_remove, content] = m; //<ul> 을 통해 이미 특정 indent 에 속한 코드이기 때문에 첫줄에 해당하는 indent 는 없앤다
             let ret = "";
             for (let line of lines) {
                 line = line.substring(indent_to_remove.length).replaceAll("\<", "&lt;").replaceAll("\>", "&gt;"); // html code 표현을 위함
-                ret += line + "\n";
+                ret += line + "<br>";
             }
             //postfix
             code.replace(/\(!code!\)/g, "`");
-            return `<pre><code class="language-${lang}">${ret}</code></pre>`;
+            //TODO 하이픈과 코드작게 처리했고, CSS 없어진거 처리해야 함
+            return `<pre><font size="3"><code class="language-${lang}">${ret}</code></font></pre>`;
+            //return `<pre><code class="language-${lang}">${ret}</code></pre>`;
         });
         return markdownCode;
     }
@@ -52782,10 +52784,16 @@ class FormatConverter {
         str = str.replaceAll(/(%%|)<br>STARTI[\s\S]*?Back:[\s\S]*?%%/g, ""); // annotation ID 제거 (%%가 짝이 안 맞는 경우가 있기 때문에, %% 사이 %% 를 지우려 하면 안됨)
         str = str.replaceAll(/%%\d\d\d\d-\d\d-\d\d%%/g, ""); // annotation date 제거 (%%가 짝이 안 맞는 경우가 있기 때문에, %% 사이 %% 를 지우려 하면 안됨)
         str = str.replaceAll(/^\s+\n/gm, "\n"); // 다중 \n 하나로 변경
+        str = str.replaceAll(/\n+/gm, "\n"); // 다중 \n 하나로 변경
         str = str.replaceAll(/%%/g, ""); // annotation 자체 제거
         str = str.replaceAll(/<!--[\s\S]*?-->/g, ""); // annotation 제거
         str = str.replaceAll(/(#)([\w가-힣\-_\/]+[\n\s])/gm, ``); // tag 를 제거
         str = str.replaceAll(/>\s*!\[\[/gm, "![["); // quote embedding 제거
+        if (str.includes("import")) {
+            console.log("debug");
+        }
+        str = str.replaceAll(/\n(\s*)(?!\s*- |\s*\|)/g, "<br>$1"); // 다음 행이 bullet 이 아닌 \n 은 모두 <br> 로 변경 (table 제외)
+        //str = str.replaceAll(/^---\n/gm, "<br><hr>")//<hr>
         //str = str.replaceAll(/\[\[\s+/gm, "[[") // embedding 내부 공백 제거
         //str = str.replaceAll(/\s+\]\]/gm, "]]") // embedding 내부 공백 제거
         //str = str.replaceAll(/\s*\|\s*/gm, "|") // embedding 내부 공백 제거
@@ -52973,9 +52981,11 @@ class TreeDictToAnkiCards {
     findOrSetAnkiCardID(anki_front, position) {
         let id = null;
         // get id 맨 위에 있는 거 하나만 가져오면 안 됨 그 이유는 두 단계 불릿 중 아래 불릿만 카드를 새로 만들어야 할 때, 맨 위 불릿 id 로 처리되기 때문
-        let bullet = anki_front.match(/^\s*- [\s\S]+/gm);
-        let id_match = /%% OND: (\d+) %%/g.exec(bullet.pop());
-        if (id_match !== null) {
+        // get id 맨 아래에 있는 OND 만 가져오면 문제 없을 것 같아서 그렇게 처리
+        //let bullet = anki_front.match(/^\s*- [\s\S]+/gm) // 마지막 bullet 을 가져오려 했으나, bullet 안에 \n 가 있는 경우를 처리하기가 어려움
+        let bullet = anki_front.match(/%% OND: (\d+) %%/gm);
+        if (bullet !== null) {
+            let id_match = /%% OND: (\d+) %%/g.exec(bullet.pop());
             id = Number(id_match[1]);
         }
         return [id, -position]; // 후에 -position 을 찾아 다른 양식으로 추가하기 위함(ID: 1238091 양식을 1238091 로 하기 위함)
@@ -53002,12 +53012,31 @@ class TreeDictToAnkiCards {
     postprocess_file_contents(str) {
         // 미리 바꾸면 ID 넣을 position 이 어긋나기 때문에 postprocess
         //str = str.replaceAll(/\!\[\[/gm, "[[") // embedding 제거
-        str = str.replaceAll(/^---\n[\s\S]*?\n---\n/g, ""); // frontmatter 제거
+        str = str.replaceAll(/^---\n(.+:.+\n)+---\n/g, ""); // frontmatter 제거
         str = str.replaceAll(/(#)([\w\-_\/]+[\n\s])/gm, ``); // tag 를 제거
         str = str.replace(/^(# )([^\n]+)\n/gm, ``); // header 1 를 제거
         str = str.replace(/\n+/gm, `\n`);
         str = str.replace(/\@\@\@/gm, ``);
+        str = str.replaceAll(/(?!\|)(---[\s\S]*?---)(?!\|)/g, `<font size=2>$1</font>`); // font size 바꾸기
         return str;
+    }
+    removeDuplicatedLine(anki_back_array) {
+        let ret_array = [];
+        // ROOT 에서 그것도 첫번째 bullet 의 윗부분이 중복되는 것이 문제이므로, 첫 번째 bullet 과 line 별로 비교해서 다른 line 만 출력함
+        let standard = anki_back_array[0].split("☰");
+        for (let [i, bullet] of anki_back_array.entries()) {
+            if (i === 0) {
+                continue;
+            }
+            for (let [j, line] of bullet.split("☰").entries()) {
+                if (standard[j] !== line) {
+                    ret_array = [...ret_array, line];
+                }
+            }
+            anki_back_array[i] = ret_array.join("☰");
+            ret_array = [];
+        }
+        return anki_back_array;
     }
     buildObsidianNoteToAnkiCard() {
         //let tfile = app.vault.getAbstractFileByPath(this.allFile.path) as TFile
@@ -53037,7 +53066,7 @@ class TreeDictToAnkiCards {
         for (let [anki_front, anki_back_array] of Object.entries(treeDict)) {
             let position_ = treeDict_position[anki_front];
             anki_front = this.obToTreeAndDict.postprocessing(anki_front);
-            let anki_back = this.obToTreeAndDict.postprocessing(anki_back_array.join("\n"));
+            let anki_back = this.obToTreeAndDict.postprocessing(this.removeDuplicatedLine(anki_back_array).join("\n"));
             text = `[Basic(MD)] **[Imagine the contents]**<br> Back: [Contents]`;
             let [id, position] = this.findOrSetAnkiCardID(anki_front, position_);
             let obnote = new ExtendedInlineNote(text, this.allFile.data.fields_dict, this.allFile.data.curly_cloze, this.allFile.data.highlights_to_cloze, this.allFile.formatter);
@@ -53103,7 +53132,8 @@ class ObnoteToTreeAndDict {
     buildTreeFromIndentContent(contentStr, file_path) {
         // 다음 행이 - # 로 시작하지 않으면 \n 을 없애서 한줄처럼 처리되게 한다. 나중에 ☰ 을 다시 \n 으로 바꿔야 함
         // 이렇게 되면, frontmatter 가 header 위에 있는 경우, 두 줄로 처리되어 frontmatter 가 무시되게 된다. 왜냐하면 line.trim().startsWith("- ") 에서 currentValue 를 += 가 아니라 = 로 대체하기 때문이다. 하지만, frontmatter 는 어차피 의미있는 정보가 아니므로 무시해도 된다.
-        contentStr = contentStr.replaceAll(/\@\@\@[\s\S]*?\@\@\@|```\w*\n[\s\S]*?```|---\n[\s\S]*?---/g, (match) => {
+        //(?!\|) 는 표를 무시하기 위함
+        contentStr = contentStr.replaceAll(/\@\@\@[\s\S]*?\@\@\@|```\w*\n[\s\S]*?```|(?!\|)---\n[\s\S]*?---(?!\|)/g, (match) => {
             match = match.replaceAll(/\n/g, "☰");
             if (/☰#/g.exec(match) !== null) {
                 throw new Error(`[OBnote] ${file_path} 에서 @@@ @@@ 또는 code block 안에 # 이 있습니다. # 을 쓸 수 없습니다.`);
@@ -53173,19 +53203,21 @@ class ObnoteToTreeAndDict {
         }
         // get root id position
         let root_position = 0;
-        let front_matter_match = /^---☰[\s\S]*?☰---/g.exec(contentStr);
+        let front_matter_match = /^---☰(.+:.+☰)+---/g.exec(contentStr);
         if (front_matter_match !== null) {
             root_position = front_matter_match[0].length;
         }
         // add root id to value if it eixsts
         let root_id = "";
-        let root_Id_match = /^(%% OND: \d+ %%)/g.exec(contentStr.replace(/^---☰[\s\S]*?☰---☰/g, ""));
+        let root_Id_match = /^(%% OND: \d+ %%)/g.exec(contentStr.replace(/^---☰(.+:.+☰)+---☰/g, ""));
         if (root_Id_match !== null) {
             root_id = root_Id_match[0];
         }
         return { value: "- ROOT " + root_id, children: rootNodes, position: root_position };
     }
+    // TODO ANKI [OBNOTE: ] - assign types for dict
     dfsQueue(root) {
+        // TODO END ANKI
         const queue = [root];
         const result = [];
         const result_QA = {};

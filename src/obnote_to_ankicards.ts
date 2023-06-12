@@ -29,9 +29,11 @@ export class TreeDictToAnkiCards {
 	findOrSetAnkiCardID(anki_front: string, position: number): number[] {
 		let id = null
 		// get id 맨 위에 있는 거 하나만 가져오면 안 됨 그 이유는 두 단계 불릿 중 아래 불릿만 카드를 새로 만들어야 할 때, 맨 위 불릿 id 로 처리되기 때문
-		let bullet = anki_front.match(/^\s*- [\s\S]+/gm)
-		let id_match = /%% OND: (\d+) %%/g.exec(bullet.pop())
-		if (id_match !== null) {
+		// get id 맨 아래에 있는 OND 만 가져오면 문제 없을 것 같아서 그렇게 처리
+		//let bullet = anki_front.match(/^\s*- [\s\S]+/gm) // 마지막 bullet 을 가져오려 했으나, bullet 안에 \n 가 있는 경우를 처리하기가 어려움
+		let bullet = anki_front.match(/%% OND: (\d+) %%/gm)
+		if (bullet !== null) {
+			let id_match = /%% OND: (\d+) %%/g.exec(bullet.pop())
 			id = Number(id_match[1])
 		}
 
@@ -62,13 +64,34 @@ export class TreeDictToAnkiCards {
 	postprocess_file_contents(str: string): string {
 		// 미리 바꾸면 ID 넣을 position 이 어긋나기 때문에 postprocess
 		//str = str.replaceAll(/\!\[\[/gm, "[[") // embedding 제거
-		str = str.replaceAll(/^---\n[\s\S]*?\n---\n/g, "") // frontmatter 제거
+		str = str.replaceAll(/^---\n(.+:.+\n)+---\n/g, "") // frontmatter 제거
 		str = str.replaceAll(/(#)([\w\-_\/]+[\n\s])/gm, ``) // tag 를 제거
 		str = str.replace(/^(# )([^\n]+)\n/gm, ``) // header 1 를 제거
 		str = str.replace(/\n+/gm, `\n`)
 		str = str.replace(/\@\@\@/gm, ``)
+		str = str.replaceAll(/(?!\|)(---[\s\S]*?---)(?!\|)/g, `<font size=2>$1</font>`) // font size 바꾸기
 		return str
 	}
+
+	removeDuplicatedLine(anki_back_array: string[]): string[] {
+		let ret_array = []
+		// ROOT 에서 그것도 첫번째 bullet 의 윗부분이 중복되는 것이 문제이므로, 첫 번째 bullet 과 line 별로 비교해서 다른 line 만 출력함
+		let standard = anki_back_array[0].split("☰")
+		for (let [i, bullet] of anki_back_array.entries()) {
+			if (i === 0) {
+				continue
+			}
+			for (let [j, line] of bullet.split("☰").entries()) {
+				if (standard[j] !== line) {
+					ret_array = [...ret_array, line]
+				}
+			}
+			anki_back_array[i] = ret_array.join("☰")
+			ret_array = []
+		}
+		return anki_back_array
+	}
+
 
 	buildObsidianNoteToAnkiCard() {
 		//let tfile = app.vault.getAbstractFileByPath(this.allFile.path) as TFile
@@ -105,7 +128,7 @@ export class TreeDictToAnkiCards {
 		for (let [anki_front, anki_back_array] of Object.entries(treeDict)) {
 			let position_ = treeDict_position[anki_front]
 			anki_front = this.obToTreeAndDict.postprocessing(anki_front)
-			let anki_back: string = this.obToTreeAndDict.postprocessing(anki_back_array.join("\n"))
+			let anki_back: string = this.obToTreeAndDict.postprocessing(this.removeDuplicatedLine(anki_back_array).join("\n"))
 			text = `[Basic(MD)] **[Imagine the contents]**<br> Back: [Contents]`
 			let [id, position] = this.findOrSetAnkiCardID(anki_front, position_)
 			let obnote = new ExtendedInlineNote(
@@ -190,7 +213,8 @@ export class ObnoteToTreeAndDict {
 	buildTreeFromIndentContent(contentStr: string, file_path: string): TreeNode {
 		// 다음 행이 - # 로 시작하지 않으면 \n 을 없애서 한줄처럼 처리되게 한다. 나중에 ☰ 을 다시 \n 으로 바꿔야 함
 		// 이렇게 되면, frontmatter 가 header 위에 있는 경우, 두 줄로 처리되어 frontmatter 가 무시되게 된다. 왜냐하면 line.trim().startsWith("- ") 에서 currentValue 를 += 가 아니라 = 로 대체하기 때문이다. 하지만, frontmatter 는 어차피 의미있는 정보가 아니므로 무시해도 된다.
-		contentStr = contentStr.replaceAll(/\@\@\@[\s\S]*?\@\@\@|```\w*\n[\s\S]*?```|---\n[\s\S]*?---/g, (match) => {
+		//(?!\|) 는 표를 무시하기 위함
+		contentStr = contentStr.replaceAll(/\@\@\@[\s\S]*?\@\@\@|```\w*\n[\s\S]*?```|(?!\|)---\n[\s\S]*?---(?!\|)/g, (match) => {
 			match = match.replaceAll(/\n/g, "☰")
 			if (/☰#/g.exec(match) !== null) {
 				throw new Error(`[OBnote] ${file_path} 에서 @@@ @@@ 또는 code block 안에 # 이 있습니다. # 을 쓸 수 없습니다.`)
@@ -264,13 +288,13 @@ export class ObnoteToTreeAndDict {
 
 		// get root id position
 		let root_position = 0
-		let front_matter_match = /^---☰[\s\S]*?☰---/g.exec(contentStr)
+		let front_matter_match = /^---☰(.+:.+☰)+---/g.exec(contentStr)
 		if (front_matter_match !== null) {
 			root_position = front_matter_match[0].length
 		}
 		// add root id to value if it eixsts
 		let root_id = ""
-		let root_Id_match = /^(%% OND: \d+ %%)/g.exec(contentStr.replace(/^---☰[\s\S]*?☰---☰/g, ""))
+		let root_Id_match = /^(%% OND: \d+ %%)/g.exec(contentStr.replace(/^---☰(.+:.+☰)+---☰/g, ""))
 		if (root_Id_match !== null) {
 			root_id = root_Id_match[0]
 		}
@@ -279,8 +303,9 @@ export class ObnoteToTreeAndDict {
 		return { value: "- ROOT " + root_id, children: rootNodes, position: root_position };
 	}
 
-
-	dfsQueue(root: TreeNode): [{}, {}] {
+	// TODO ANKI [OBNOTE: ] - assign types for dict
+	dfsQueue(root: TreeNode): [{ [key: string]: string[] }, {}] {
+		// TODO END ANKI
 		const queue: TreeNode[] = [root];
 		const result: string[] = [];
 		const result_QA = {}
