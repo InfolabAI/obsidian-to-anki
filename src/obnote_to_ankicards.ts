@@ -31,12 +31,14 @@ export class TreeDictToAnkiCards {
 	findOrSetAnkiCardID(anki_front: string, position: number): number[] {
 		let id = null
 		// get id 맨 위에 있는 거 하나만 가져오면 안 됨 그 이유는 두 단계 불릿 중 아래 불릿만 카드를 새로 만들어야 할 때, 맨 위 불릿 id 로 처리되기 때문
-		// get id 맨 아래에 있는 OND 만 가져오면 문제 없을 것 같아서 그렇게 처리
+		// get id 맨 아래에 있는 OND 만 가져오면 안 됨 그 이유는 위와 마찬가지로 아래 불릿만 카드를 새로 만들어야 할 때, 맨 위 불릿 id 로 처리되기 때문
 		//let bullet = anki_front.match(/^\s*- [\s\S]+/gm) // 마지막 bullet 을 가져오려 했으나, bullet 안에 \n 가 있는 경우를 처리하기가 어려움
-		let bullet = anki_front.match(/%% OND: (\d+) %%/gm)
+		let bullet = anki_front.match(/☰\s*- [^☰]*/gm)
 		if (bullet !== null) {
 			let id_match = /%% OND: (\d+) %%/g.exec(bullet.pop())
-			id = Number(id_match[1])
+			if (id_match !== null) {
+				id = Number(id_match[1])
+			}
 		}
 
 		return [id, -position] // 후에 -position 을 찾아 다른 양식으로 추가하기 위함(ID: 1238091 양식을 1238091 로 하기 위함)
@@ -114,8 +116,8 @@ export class TreeDictToAnkiCards {
 		let file_name = this.allFile.path.split("/").pop()
 		console.log(file_name)
 		let folder_path = this.allFile.path.split("/").slice(0, -1).join("/")
-		let file_condition = /\(Test\)|L0\.|L1\.|L3\.|\(T\)|\(Cleaning\)|\(Meeting\)/g.exec(file_name) !== null
-		let folder_condition = /3. Private|L0\.|L1\.|L3\.|Templ|0. Inbox|Welcome|hee-publish|Daily|Gantt|Attachment|supplement|References/gi.exec(folder_path) !== null
+		let file_condition = /\(No Anki\)|\(Test\)|L0\.|L1\.|L3\.|\(T\)|\(Cleaning\)|\(Meeting\)/g.exec(file_name) !== null
+		let folder_condition = /3. Private|L0\.|L1\.|L3\.|Templ|0. Inbox|No Anki|Welcome|hee-publish|Daily|Gantt|Attachment|supplement|References/gi.exec(folder_path) !== null
 
 		if (file_condition || folder_condition) {
 			this.allFile.file = this.allFile.file.replaceAll(/ %% OND: \d+ %% /g, "")
@@ -140,10 +142,10 @@ export class TreeDictToAnkiCards {
 		// for loop with key and value of dict
 		for (let [anki_front, anki_back_array] of Object.entries(treeDict)) {
 			let position_ = treeDict_position[anki_front]
+			let [id, position] = this.findOrSetAnkiCardID(anki_front, position_)
 			anki_front = this.obToTreeAndDict.postprocessing(anki_front)
 			let anki_back: string = this.obToTreeAndDict.postprocessing(this.removeDuplicatedLine(anki_back_array).join("\n"))
 			text = `[Basic(MD)] **[Imagine the contents]**<br> Back: [Contents]`
-			let [id, position] = this.findOrSetAnkiCardID(anki_front, position_)
 			let obnote = new ExtendedInlineNote(
 				text,
 				this.allFile.data.fields_dict,
