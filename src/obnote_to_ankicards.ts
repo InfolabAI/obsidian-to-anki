@@ -33,6 +33,7 @@ export class TreeDictToAnkiCards {
 		// get id 맨 위에 있는 거 하나만 가져오면 안 됨 그 이유는 두 단계 불릿 중 아래 불릿만 카드를 새로 만들어야 할 때, 맨 위 불릿 id 로 처리되기 때문
 		// get id 맨 아래에 있는 OND 만 가져오면 안 됨 그 이유는 위와 마찬가지로 아래 불릿만 카드를 새로 만들어야 할 때, 맨 위 불릿 id 로 처리되기 때문
 		//let bullet = anki_front.match(/^\s*- [\s\S]+/gm) // 마지막 bullet 을 가져오려 했으나, bullet 안에 \n 가 있는 경우를 처리하기가 어려움
+		// 두 번 연속 bullet 이 나오지 않는 bullet 만 선택하는 것으로 regex 구상함
 		let bullet = anki_front.match(/(?!☰\s*- .*☰\s*- .*)☰\s*- .*|(?!\s*- .*☰\s*- .*)\s*- .*/gm) // ROOT 의 경우는 앞에 ☰ 가 없으므로 예외처리
 		if (bullet !== null) {
 			let id_match = /%% OND: (\d+) %%/g.exec(bullet.pop())
@@ -116,11 +117,11 @@ export class TreeDictToAnkiCards {
 		let file_name = this.allFile.path.split("/").pop()
 		console.log(file_name)
 		let folder_path = this.allFile.path.split("/").slice(0, -1).join("/")
-		let file_condition = /\(No Anki\)|\(Test\)|L0\.|L1\.|L3\.|\(T\)|\(Cleaning\)|\(Meeting\)/g.exec(file_name) !== null
+		let file_condition = /\(Class Diagram\)|\(Dataviewjs\)|\(Dataview\)|\(Chat\)|\(No Anki\)|\(Test\)|L0\.|L1\.|L3\.|\(T\)|\(Cleaning\)|\(Meeting\)/g.exec(file_name) !== null
 		let folder_condition = /3. Private|L0\.|L1\.|L3\.|Templ|0. Inbox|No Anki|Welcome|hee-publish|Daily|Gantt|Attachment|supplement|References/gi.exec(folder_path) !== null
 
 		if (file_condition || folder_condition) {
-			this.allFile.file = this.allFile.file.replaceAll(/ %% OND: \d+ %% /g, "")
+			this.allFile.file = this.allFile.file.replaceAll(/ %% OND: \d+ %% |%% OND: \d+ %%/g, "")
 			return
 		}
 		let tree = null

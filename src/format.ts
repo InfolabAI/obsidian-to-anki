@@ -136,23 +136,23 @@ export class FormatConverter {
     }
 
     formatLinks(note_text: string): string {
-        if (!(this.file_cache.hasOwnProperty("links"))) {
-            return note_text
-        }
-        //note_text = note_text.replaceAll(/\[\[(.*?)|.*?\]\]/g, "[[$1]]") //
-        for (let link of this.file_cache.links) {
-            note_text = note_text.replace(new RegExp(c.escapeRegex(link.original), "g"), '<a href="' + this.getUrlFromLink(link.link) + '">' + link.displayText + "</a>")
+        // 만약 [[]] 가 있으면 [[]] 처리 
+        if (this.file_cache.hasOwnProperty("links")) {
+            //note_text = note_text.replaceAll(/\[\[(.*?)|.*?\]\]/g, "[[$1]]") //
+            for (let link of this.file_cache.links) {
+                note_text = note_text.replace(new RegExp(c.escapeRegex(link.original), "g"), '<a href="' + this.getUrlFromLink(link.link) + '">' + link.displayText + "</a>")
+            }
         }
 
-        if (!(this.file_cache.hasOwnProperty("embeds"))) {
-            return note_text
-        }
-        for (let embed of this.file_cache.embeds) {
-            let matches = /!\[\[(.*?)\]\](?<!png\]\]|jpg\]\]|png\|\d+\]\]|jpg\|\d+\]\])/gm.exec(note_text) // image 가 아닌 embedding 찾기 (e.g., ![[.png]], ![[.jpg]], ![[.png|500]], ![[.jpg|500]] 를 제외하고 찾기
-            if (matches === null) {
-                continue
+        // 만약 ![[]] 가 있으면 ![[]] 처리 
+        if (this.file_cache.hasOwnProperty("embeds")) {
+            for (let embed of this.file_cache.embeds) {
+                let matches = /!\[\[(.*?)\]\](?<!png\]\]|jpg\]\]|png\|\d+\]\]|jpg\|\d+\]\])/gm.exec(note_text) // image 가 아닌 embedding 찾기 (e.g., ![[.png]], ![[.jpg]], ![[.png|500]], ![[.jpg|500]] 를 제외하고 찾기
+                if (matches === null) {
+                    continue
+                }
+                note_text = note_text.replace(new RegExp(c.escapeRegex(embed.original), "g"), '<a href="' + this.getUrlFromLink(embed.link) + '">' + embed.displayText + "</a>")
             }
-            note_text = note_text.replace(new RegExp(c.escapeRegex(embed.original), "g"), '<a href="' + this.getUrlFromLink(embed.link) + '">' + embed.displayText + "</a>")
         }
         return note_text
     }
